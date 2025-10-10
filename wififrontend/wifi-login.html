@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Login - HackQuest25</title>
+    <link rel="stylesheet" href="wifi-login.css">
+</head>
+<body>
+    <div class="container">
+        <div class="login-card">
+            <div class="logo">
+                <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="30" cy="30" r="28" stroke="#4F46E5" stroke-width="4"/>
+                    <path d="M15 30C15 21.7157 21.7157 15 30 15C38.2843 15 45 21.7157 45 30" stroke="#4F46E5" stroke-width="4" stroke-linecap="round"/>
+                    <path d="M20 30C20 24.4772 24.4772 20 30 20C35.5228 20 40 24.4772 40 30" stroke="#4F46E5" stroke-width="4" stroke-linecap="round"/>
+                    <circle cx="30" cy="30" r="3" fill="#4F46E5"/>
+                </svg>
+            </div>
+            
+            <h1>Welcome to HackQuest25</h1>
+            <p class="subtitle">Connect to our WiFi network</p>
+            
+            <form id="wifiLoginForm" class="login-form">
+                <div class="form-group">
+                    <label for="name">Full Name</label>
+                    <input 
+                        type="text" 
+                        id="name" 
+                        name="name" 
+                        placeholder="Enter your full name" 
+                        required
+                        autocomplete="name"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        placeholder="your.email@example.com" 
+                        required
+                        autocomplete="email"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input 
+                        type="tel" 
+                        id="phone" 
+                        name="phone" 
+                        placeholder="+91 XXXXX XXXXX" 
+                        required
+                        autocomplete="tel"
+                        pattern="[0-9+\s-]+"
+                    >
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-container">
+                        <input 
+                            type="checkbox" 
+                            id="alerts" 
+                            name="alerts" 
+                            checked
+                        >
+                        <span class="checkmark"></span>
+                        <span class="checkbox-label">Enable emergency alerts and notifications</span>
+                    </label>
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-container">
+                        <input 
+                            type="checkbox" 
+                            id="terms" 
+                            name="terms" 
+                            required
+                        >
+                        <span class="checkmark"></span>
+                        <span class="checkbox-label">I agree to the <a href="#" class="link">Terms & Conditions</a></span>
+                    </label>
+                </div>
+                
+                <button type="submit" class="submit-btn">
+                    <span id="btnText">Connect to WiFi</span>
+                    <span id="spinner" class="spinner" style="display: none;"></span>
+                </button>
+                
+                <div id="message" class="message"></div>
+            </form>
+            
+            <div class="footer">
+                <p>Secure connection powered by HackQuest25</p>
+                <p class="help-text">Need help? Contact support@hackquest25.com</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const form = document.getElementById('wifiLoginForm');
+        const message = document.getElementById('message');
+        const btnText = document.getElementById('btnText');
+        const spinner = document.getElementById('spinner');
+        const submitBtn = form.querySelector('.submit-btn');
+        
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Get form data
+            const formData = {
+                name: document.getElementById('name').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                alerts: document.getElementById('alerts').checked,
+                terms: document.getElementById('terms').checked
+            };
+            
+            // Validate
+            if (!formData.name || !formData.email || !formData.phone) {
+                showMessage('Please fill in all required fields', 'error');
+                return;
+            }
+            
+            if (!formData.terms) {
+                showMessage('Please accept the Terms & Conditions', 'error');
+                return;
+            }
+            
+            // Show loading
+            submitBtn.disabled = true;
+            btnText.textContent = 'Connecting...';
+            spinner.style.display = 'inline-block';
+            message.textContent = '';
+            
+            try {
+                // TODO: Replace with your actual backend API endpoint
+                const API_URL = 'http://localhost:3000/api/wifi-login';
+                
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showMessage('✓ Successfully connected to WiFi! Redirecting...', 'success');
+                    
+                    // Store user data
+                    localStorage.setItem('wifiUser', JSON.stringify({
+                        name: formData.name,
+                        email: formData.email,
+                        connectedAt: new Date().toISOString()
+                    }));
+                    
+                    // Redirect after 2 seconds
+                    setTimeout(() => {
+                        window.location.href = data.redirectUrl || 'https://hackquest25.com';
+                    }, 2000);
+                } else {
+                    showMessage(data.message || 'Connection failed. Please try again.', 'error');
+                    resetButton();
+                }
+            } catch (error) {
+                console.error('Connection error:', error);
+                showMessage('Network error. Please check your connection and try again.', 'error');
+                resetButton();
+            }
+        });
+        
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = 'message ' + type;
+            message.style.display = 'block';
+        }
+        
+        function resetButton() {
+            submitBtn.disabled = false;
+            btnText.textContent = 'Connect to WiFi';
+            spinner.style.display = 'none';
+        }
+        
+        // Auto-hide messages after 5 seconds
+        let messageTimeout;
+        const observer = new MutationObserver(() => {
+            if (message.textContent && !message.textContent.includes('Redirecting')) {
+                clearTimeout(messageTimeout);
+                messageTimeout = setTimeout(() => {
+                    message.style.display = 'none';
+                }, 5000);
+            }
+        });
+        observer.observe(message, { childList: true, characterData: true, subtree: true });
+    </script>
+</body>
+</html>

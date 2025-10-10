@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<!--
+HackQuest25 - Modern WiFi Login Portal
+Compatible with MyPublicWiFi Backend
+-->
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<meta http-equiv="cache-control" content="no-cache" />
+<meta http-equiv="expires" content="0" />
+<meta http-equiv="pragma" content="no-cache" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="format-detection" content="telephone=no" />
+<meta name="HandheldFriendly" content="True" />
+<meta name="MobileOptimized" content="320" />
+<title>HackQuest25 - WiFi Access</title>
+<script type="text/javascript" src="jquery-1.4.3.min.js"></script>
+<link rel="stylesheet" type="text/css" href="style.css" />
+<!-- Supabase JS Client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="text/javascript">
+/*<![CDATA[*/
+
+// Initialize Supabase Client
+const SUPABASE_URL = 'https://akblmbpxxotmebzghczj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYmxtYnB4eG90bWViemdoY3pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwNzQxMDUsImV4cCI6MjA3NTY1MDEwNX0.6d8XmmmoSh0hY8OWoymIEX7UnQU6qpgyQsyIe7_KHtI';
+
+const supabase = supabase_js.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+console.log('✅ Supabase client initialized');
+
+// ==========================================
+// HAPTIC ALERT SERVICE
+// ==========================================
+class HapticAlertService {
+  constructor() {
+    this.permissions = {
+      vibration: 'vibrate' in navigator,
+      flash: true,
+      notifications: false
+    };
+    
+    this.morseTimings = {
+      dot: 200,
+      dash: 600,
+      gapSymbol: 200,
+      gapLetter: 600,
+      gapWord: 1400
+    };
+    
+    this.morseCode = {
+      'SOS': '... --- ...',
+      'ALERT': '.- .-.. . .-. -',
+      'FIRE': '..-. .. .-. .',
+      'EMERGENCY': '. -- . .-. --. . -. -.-. -.--'
+    };
+    
+    this.isFlashing = false;
+  }
+
+  async triggerAlert(alertData) {
+    const { severity = 'medium', type = 'general', morseMessage = 'ALERT' } = alertData;
+    
+    console.log('🚨 Alert triggered:', alertData);
+    
+    // Always vibrate for feedback
+    if (this.permissions.vibration) {
+      this.vibratePattern(severity);
+    }
+    
+    // Flash screen for critical/SOS alerts
+    if (severity === 'critical' || type === 'SOS') {
+      this.flashScreen(morseMessage);
+    }
+  }
+
+  vibratePattern(severity) {
+    let pattern;
+    
+    switch (severity) {
+      case 'critical':
+        // SOS pattern
+        pattern = [200, 100, 200, 100, 200, 300, 600, 100, 600, 100, 600, 300, 200, 100, 200, 100, 200];
+        break;
+      case 'high':
+        // Rapid triple pulse
+        pattern = [300, 200, 300, 200, 300];
+        break;
+      case 'medium':
+        // Double pulse
+        pattern = [400, 200, 400];
+        break;
+      case 'low':
+        // Single pulse
+        pattern = [500];
+        break;
+      default:
+        pattern = [300];
+    }
+    
+    try {
+      navigator.vibrate(pattern);
+      console.log('✓ Vibration triggered:', severity);
+    } catch (error) {
+      console.log('Vibration not available');
+    }
+  }
+
+  flashScreen(message = 'ALERT') {
+    if (this.isFlashing) return;
+    
+    this.isFlashing = true;
+    
+    // Create flash overlay
+    let overlay = document.getElementById('emergency-flash-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'emergency-flash-overlay';
+      overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: red;
+        z-index: 999999;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.1s ease;
+      `;
+      document.body.appendChild(overlay);
+    }
+    
+    const morsePattern = this.morseCode[message.toUpperCase()] || this.morseCode['ALERT'];
+    this.executeMorseFlash(morsePattern, overlay);
+  }
+
+  async executeMorseFlash(morsePattern, overlay) {
+    const symbols = morsePattern.split(' ');
+    
+    for (const symbol of symbols) {
+      for (const char of symbol) {
+        const duration = char === '.' ? this.morseTimings.dot : this.morseTimings.dash;
+        
+        // Flash on
+        overlay.style.opacity = '0.9';
+        await this.sleep(duration);
+        
+        // Flash off
+        overlay.style.opacity = '0';
+        await this.sleep(this.morseTimings.gapSymbol);
+      }
+      
+      await this.sleep(this.morseTimings.gapLetter);
+    }
+    
+    // Repeat 2 more times for critical alerts
+    for (let i = 0; i < 2; i++) {
+      await this.sleep(this.morseTimings.gapWord);
+      
+      for (const symbol of symbols) {
+        for (const char of symbol) {
+          const duration = char === '.' ? this.morseTimings.dot : this.morseTimings.dash;
+          overlay.style.opacity = '0.9';
+          await this.sleep(duration);
+          overlay.style.opacity = '0';
+          await this.sleep(this.morseTimings.gapSymbol);
+        }
+        await this.sleep(this.morseTimings.gapLetter);
+      }
+    }
+    
+    this.isFlashing = false;
+    console.log('✓ Screen flash completed');
+  }
+
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Test function
+  async testCriticalAlert() {
+    console.log('🧪 Testing CRITICAL alert...');
+    await this.triggerAlert({
+      severity: 'critical',
+      type: 'SOS',
+      morseMessage: 'SOS'
+    });
+  }
+
+  async testRegularAlert() {
+    console.log('🧪 Testing REGULAR alert...');
+    await this.triggerAlert({
+      severity: 'medium',
+      type: 'general',
+      morseMessage: 'ALERT'
+    });
+  }
+}
+
+// Initialize haptic service
+const hapticService = new HapticAlertService();
+console.log('✅ Haptic Alert Service initialized');
+
+// Make it available globally for testing
+window.hapticService = hapticService;
+
+// ==========================================
+// DIALOG FUNCTIONS
+// ==========================================
+function HideDialog(DialogId) {
+  const MessageDialog = document.getElementById(DialogId);
+  MessageDialog.style.display = 'none';
+}
+
+function ShowMessage(DialogId, Msg) {
+   const MessageDialog = document.getElementById(DialogId);
+   MessageDialog.style.display = 'block';
+   MessageDialog.offsetHeight;
+   MessageDialog.style.display = 'flex';
+   MessageDialog.textContent = Msg;
+}
+
+function ShowErrorMessage(Error) {
+  HideDialog("InfoDialog");
+  HideDialog("WarningDialog");
+  ShowMessage("ErrorDialog", document.getElementById(Error).textContent);
+}
+
+function ShowInfoMessage(Info) {
+  HideDialog("ErrorDialog");
+  HideDialog("WarningDialog");
+  ShowMessage("InfoDialog", document.getElementById(Info).textContent);
+}
+
+function ShowWarningMessage(Warning) {
+  HideDialog("ErrorDialog");
+  HideDialog("InfoDialog");
+  ShowMessage("WarningDialog", document.getElementById(Warning).textContent);
+}
+
+function VoucherAccountCheck() {
+   var chk = false;
+   if (document.getElementById("Voucher").value == '') {
+     ShowErrorMessage("VoucherInvalid")
+   } else chk=true;
+   return(chk);
+}
+
+function UserAccountCheck() {
+   var chk = false;
+   if (document.getElementById("Username").value == '') {
+     ShowErrorMessage("UsernameInvalid")
+   } else chk=true;
+   return(chk);
+}
+
+function ToggleCheckbox(element) {
+    document.getElementById("TOCLoginButton").disabled = !element.checked;
+}
+
+// Store geolocation globally
+var userLocation = null;
+
+function validateAndSubmit(event) {
+    // Prevent default form submission
+    if (event) {
+        event.preventDefault();
+    }
+    
+    // Get form values
+    var phone = document.getElementById("Phone").value;
+    var countryCode = document.getElementById("CountryCode").value;
+    var language = document.getElementById("Language").value;
+    var locationTracking = document.getElementById("LocationTracking").checked;
+    var backgroundAlerts = document.getElementById("BackgroundAlerts").checked;
+    
+    // Validate phone number
+    if (!phone || phone.length < 10) {
+        alert("Please enter a valid phone number (at least 10 digits)");
+        return false;
+    }
+    
+    // Check if location tracking is enabled
+    if (locationTracking) {
+        if (!userLocation) {
+            // Request location first time
+            alert("Please allow location access when prompted to receive personalized emergency alerts for your area.");
+            requestLocationPermission(function(position) {
+                userLocation = position;
+                // Retry submission with location
+                validateAndSubmit();
+            });
+            return false;
+        }
+        
+        // We have location, proceed with registration
+        sendRegistrationToBackend({
+            phone: countryCode + phone,
+            countryCode: countryCode,
+            phoneNumber: phone,
+            language: language,
+            locationTracking: locationTracking,
+            backgroundAlerts: backgroundAlerts,
+            latitude: userLocation.coords.latitude,
+            longitude: userLocation.coords.longitude,
+            accuracy: userLocation.coords.accuracy,
+            timestamp: new Date().toISOString()
+        });
+    } else {
+        // No location tracking - register without location
+        sendRegistrationToBackend({
+            phone: countryCode + phone,
+            countryCode: countryCode,
+            phoneNumber: phone,
+            language: language,
+            locationTracking: false,
+            backgroundAlerts: backgroundAlerts,
+            latitude: null,
+            longitude: null,
+            timestamp: new Date().toISOString()
+        });
+    }
+    
+    return false;
+}
+
+function requestLocationPermission(successCallback) {
+    if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser. Please use a modern browser or disable location tracking.");
+        return;
+    }
+    
+    console.log('🌍 Requesting location permission...');
+    
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            // Success - got location
+            console.log('✅ Location obtained:', position.coords.latitude, position.coords.longitude);
+            if (successCallback) {
+                successCallback(position);
+            }
+        },
+        function(error) {
+            // Error getting location
+            var errorMsg = "Location access denied.\n\n";
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    errorMsg += "You denied location access. Please enable it in your browser settings to receive personalized alerts, or uncheck the location tracking option.";
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    errorMsg += "Location information is unavailable. Please check your device settings.";
+                    break;
+                case error.TIMEOUT:
+                    errorMsg += "Location request timed out. Please try again.";
+                    break;
+                default:
+                    errorMsg += "An unknown error occurred: " + error.message;
+            }
+            
+            alert(errorMsg);
+            console.error('❌ Geolocation error:', error);
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+        }
+    );
+}
+
+function sendRegistrationToBackend(userData) {
+    // Show loading state
+    var submitBtn = document.getElementById('TOCLoginButton');
+    var originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Registering...';
+    submitBtn.disabled = true;
+    
+    // Store locally first
+    try {
+        localStorage.setItem('alertnet_user', JSON.stringify(userData));
+    } catch(e) {
+        console.log('LocalStorage not available');
+    }
+    
+    // STEP 1: Store in Supabase Database FIRST
+    storeInSupabase(userData)
+        .then(function(supabaseResult) {
+            console.log('✅ Stored in Supabase:', supabaseResult);
+            
+            // Add Supabase user ID to userData
+            userData.userId = supabaseResult.id;
+            userData.supabaseStored = true;
+            
+            // STEP 2: Send to Google Cloud Backend (optional)
+            return sendToBackendAPI(userData);
+        })
+        .then(function(backendResult) {
+            console.log('✅ Sent to backend:', backendResult);
+            
+            // Store backend response
+            try {
+                localStorage.setItem('alertnet_registration', JSON.stringify(backendResult));
+            } catch(e) {}
+            
+            // Show success and redirect
+            ShowInfoMessage("LoginSuccessful");
+            setTimeout(function() {
+                window.location.href = 'success.html';
+            }, 1500);
+        })
+        .catch(function(error) {
+            console.error('Registration error:', error);
+            
+            // Reset button
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
+            
+            // Show error but still allow access if Supabase worked
+            if (userData.supabaseStored) {
+                alert('Registered successfully! Backend sync failed but you can still use WiFi.');
+                setTimeout(function() {
+                    window.location.href = 'success.html';
+                }, 2000);
+            } else {
+                alert('Registration failed. Please try again or contact support.');
+            }
+        });
+}
+
+async function storeInSupabase(userData) {
+    console.log('📤 Storing to Supabase...', userData);
+    
+    try {
+        // Prepare data for Supabase
+        const subscriptionData = {
+            phone: userData.phone,
+            country_code: userData.countryCode,
+            phone_number: userData.phoneNumber,
+            language: userData.language,
+            location_tracking: userData.locationTracking,
+            background_alerts: userData.backgroundAlerts,
+            last_latitude: userData.latitude,
+            last_longitude: userData.longitude,
+            location_accuracy: userData.accuracy,
+            registered_at: userData.timestamp,
+            last_seen: new Date().toISOString(),
+            active: true,
+            venue_id: null // Will be updated by backend after geofence check
+        };
+        
+        // Check if user already exists
+        const { data: existingUser, error: checkError } = await supabase
+            .from('wifi_subscriptions')
+            .select('*')
+            .eq('phone', userData.phone)
+            .single();
+        
+        if (existingUser) {
+            // Update existing user
+            console.log('User exists, updating...', existingUser.id);
+            const { data, error } = await supabase
+                .from('wifi_subscriptions')
+                .update(subscriptionData)
+                .eq('id', existingUser.id)
+                .select()
+                .single();
+            
+            if (error) throw error;
+            console.log('✅ Updated existing user:', data);
+            return data;
+        } else {
+            // Insert new user
+            console.log('New user, inserting...');
+            const { data, error } = await supabase
+                .from('wifi_subscriptions')
+                .insert(subscriptionData)
+                .select()
+                .single();
+            
+            if (error) throw error;
+            console.log('✅ Inserted new user:', data);
+            return data;
+        }
+    } catch (error) {
+        console.error('❌ Supabase error:', error);
+        throw error;
+    }
+}
+
+async function sendToBackendAPI(userData) {
+    // TODO: Replace with your actual Google Cloud backend URL
+    var BACKEND_URL = 'https://your-backend-url.run.app/api/register';
+    // Example: 'https://hackquest-backend-xxxxx.run.app/api/register'
+    
+    console.log('📤 Sending to backend API...', BACKEND_URL);
+    
+    try {
+        const response = await fetch(BACKEND_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(userData)
+        });
+        
+        if (!response.ok) {
+            throw new Error('Backend response not OK: ' + response.status);
+        }
+        
+        const data = await response.json();
+        console.log('✅ Backend response:', data);
+        return data;
+    } catch (error) {
+        console.warn('⚠️ Backend API error (non-critical):', error);
+        // Don't throw - backend is optional, Supabase is primary
+        return { success: false, error: error.message, source: 'backend_optional' };
+    }
+}
+
+$(document).ready(function() {
+    // Initialization
+});
+
+/*]]>*/
+</script>
+</head>
+<body>
+   <div class="modern-wrap">
+      <!-- Header Section - Hidden for AlertNet Style -->
+      <div class="modern-header" style="display: none;">
+         <div class="wifi-icon">
+            <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+               <circle cx="40" cy="40" r="37" stroke="#4F46E5" stroke-width="5"/>
+               <path d="M20 40C20 28.9543 28.9543 20 40 20C51.0457 20 60 28.9543 60 40" stroke="#4F46E5" stroke-width="5" stroke-linecap="round"/>
+               <path d="M27 40C27 32.268 32.268 27 40 27C47.732 27 53 32.268 53 40" stroke="#4F46E5" stroke-width="5" stroke-linecap="round"/>
+               <circle cx="40" cy="40" r="4" fill="#4F46E5"/>
+            </svg>
+         </div>
+         <h1 class="modern-title">HackQuest25 WiFi</h1>
+         <p class="modern-subtitle">Connect to secure internet access</p>
+      </div>
+
+      <!-- Message Dialogs -->
+      <div id="ErrorDialog" class="modern-message modern-error" style="display: none;">
+         &nbsp;
+      </div>
+
+      <div id="WarningDialog" class="modern-message modern-warning" style="display: none;">
+         &nbsp;
+      </div>
+
+      <div id="InfoDialog" class="modern-message modern-info" style="display: none;">
+         &nbsp;
+      </div>
+
+      <noscript>
+         <div class="modern-message modern-warning">
+            This page requires JavaScript. Please enable JavaScript in your browser!
+         </div>
+      </noscript>
+
+      <!-- Main Login Container -->
+      <div class="modern-container">
+         <div class="modern-card">
+            <div class="wifi-icon-small">
+               <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M30 35 L30 45 M20 25 Q30 15 40 25 M10 15 Q30 -5 50 15" stroke="#374151" stroke-width="3" stroke-linecap="round" fill="none"/>
+                  <circle cx="30" cy="47" r="3" fill="#374151"/>
+               </svg>
+            </div>
+            
+            <h2 class="card-title">Welcome to AlertNet</h2>
+            <p class="card-subtitle">Enter your phone number to register for emergency alerts</p>
+            
+            <form method="post" action="" class="modern-form" onsubmit="return validateAndSubmit();">
+               <!-- Hidden field for MyPublicWiFi compatibility -->
+               <input type="hidden" name="GuestPassword" value="" />
+               <input type="hidden" name="action" value="login" />
+               
+               <!-- Phone Number with Country Code -->
+               <div class="form-field">
+                  <label for="Phone">Mobile Phone Number</label>
+                  <div class="phone-input-group">
+                     <select id="CountryCode" name="CountryCode" class="country-code-select">
+                        <option value="+91" selected>🇮🇳 +91</option>
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="+44">🇬🇧 +44</option>
+                        <option value="+61">🇦🇺 +61</option>
+                        <option value="+81">🇯🇵 +81</option>
+                        <option value="+86">🇨🇳 +86</option>
+                        <option value="+971">🇦🇪 +971</option>
+                        <option value="+65">🇸🇬 +65</option>
+                        <option value="+60">🇲🇾 +60</option>
+                        <option value="+94">🇱🇰 +94</option>
+                     </select>
+                     <input 
+                        type="tel" 
+                        id="Phone" 
+                        name="Phone" 
+                        placeholder="Enter your mobile phone number" 
+                        class="phone-input"
+                        pattern="[0-9]{10}"
+                        required
+                     />
+                  </div>
+               </div>
+
+               <!-- Permission Checkboxes -->
+               <div class="checkbox-field">
+                  <label class="modern-checkbox">
+                     <input type="checkbox" id="LocationTracking" name="LocationTracking" />
+                     <span class="checkbox-custom"></span>
+                     <span class="checkbox-text">I allow location tracking to receive accurate and personalized emergency alerts for my area.</span>
+                  </label>
+               </div>
+
+               <div class="checkbox-field">
+                  <label class="modern-checkbox">
+                     <input type="checkbox" id="BackgroundAlerts" name="BackgroundAlerts" />
+                     <span class="checkbox-custom"></span>
+                     <span class="checkbox-text">I allow this app to run in the background for continuous emergency alert delivery.</span>
+                  </label>
+               </div>
+
+               <!-- Preferred Alert Language -->
+               <div class="form-field">
+                  <label for="Language">Preferred Alert Language</label>
+                  <select id="Language" name="Language" class="modern-select" required>
+                     <option value="en" selected>English</option>
+                     <option value="hi">हिन्दी (Hindi)</option>
+                     <option value="ml">മലയാളം (Malayalam)</option>
+                     <option value="ta">தமிழ் (Tamil)</option>
+                     <option value="te">తెలుగు (Telugu)</option>
+                     <option value="kn">ಕನ್ನಡ (Kannada)</option>
+                     <option value="bn">বাংলা (Bengali)</option>
+                     <option value="mr">मराठी (Marathi)</option>
+                     <option value="gu">ગુજરાતી (Gujarati)</option>
+                     <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+                  </select>
+               </div>
+
+               <button type="submit" id="TOCLoginButton" class="modern-button">
+                  Register & Enable Alerts
+               </button>
+
+               <!-- Privacy Notice -->
+               <p class="privacy-notice">
+                  Your privacy is important. Location data is only used for emergency alerts.
+               </p>
+            </form>
+         </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="modern-footer">
+         <p>Secure connection powered by HackQuest25</p>
+         <p class="footer-help">Need help? Contact support@hackquest25.com</p>
+      </div>
+   </div>
+
+   <!-- Hidden Messages (Keep for backend compatibility) -->
+   <div style="display: none;">
+      <p id="LocationPermission">Requesting location access... Please allow when prompted.</p>
+      <p id="ServiceDisabled">Sorry, This service is currently unavailable for the selected action.</p>
+      <p id="UsernameInvalid">The entered username is invalid. Please try again.</p>
+      <p id="VoucherInvalid">The entered voucher is invalid. Please try again.</p>
+      <p id="UserPasswordInvalid">The entered user password is invalid. Please try again.</p>
+      <p id="GuestPasswordInvalid">The entered access password is invalid. Please try again.</p>
+      <p id="MaxDailyLoginsExceeded">You have reached the maximum number of daily logins with this method. Please try again tomorrow or choose another login method.</p>
+      <p id="UserAccountDisabled">The specified user account is currently blocked. Please contact support.</p>
+      <p id="UserAccountExpired">The specified user account has expired. Please contact support.</p>
+      <p id="UserTimeCreditNotEnough">The specified user account does not have sufficient time credit. Please top up your account.</p>
+      <p id="UserTrafficCreditNotEnough">The specified user account does not have sufficient data volume credit. Please top up your account.</p>
+      <p id="NoUserCredit">The time and data volume credit for the specified user account has been used up. Please try another account.</p>
+      <p id="DailyUserQuotaExceeded">The daily time or data limit for the specified user account has been reached. Please try again tomorrow.</p>
+      <p id="MonthlyUserQuotaExceeded">The monthly time or data limit for the specified user account has been reached. Please try again next month.</p>
+      <p id="UserAccountUsed">The specified user account has already been used. Please try another account.</p>
+      <p id="MaxUserConcurrentLoginsExceeded">The maximum number of simultaneous logins for this user account has been reached. Please try again later.</p>
+      <p id="VoucherDisabled">The specified voucher is currently blocked. Please contact support.</p>
+      <p id="VoucherExpired">The specified voucher has expired. Please contact support.</p>
+      <p id="VoucherTimeCreditNotEnough">The specified voucher does not have sufficient time credit. Please top up your account.</p>
+      <p id="VoucherTrafficCreditNotEnough">The specified voucher does not have sufficient data volume credit. Please top up your account.</p>
+      <p id="NoVoucherCredit">The time and data volume credit for the specified voucher has been used up. Please try another voucher.</p>
+      <p id="DailyVoucherQuotaExceeded">The daily time or data limit for the specified voucher has been reached. Please try again tomorrow.</p>
+      <p id="MonthlyVoucherQuotaExceeded">The monthly time or data limit for the specified voucher has been reached. Please try again next month.</p>
+      <p id="VoucherUsed">The specified voucher has already been used. Please try another voucher.</p>
+      <p id="MaxVoucherConcurrentLoginsExceeded">The maximum number of simultaneous logins for this voucher has been reached. Please try again later.</p>
+      <p id="PasswordConfirmInvalid">The two passwords do not match. Please try again.</p>
+      <p id="NewPasswordEmpty">Empty passwords are not allowed. Please enter a password.</p>
+      <p id="MaxUploadSizeExceeded">Your data could not be transferred. The maximum allowed file size has been exceeded.</p>
+      <p id="FilesUploadRejected">Your data could not be transferred. The server rejected the upload.</p>
+      <p id="FilesUploadAborted">Your data could not be transferred. The upload has been canceled.</p>
+      <p id="GeneralFilesUploadError">Your data could not be transferred. An error occurred.</p>
+      <p id="AccountRecharged">Your account has been successfully topped up. Thank you for your trust!</p>
+      <p id="PasswordChanged">Your password has been successfully changed.</p>
+      <p id="LoginSuccessful">You have successfully logged in.</p>
+      <p id="LogoutSuccessful">You have successfully logged out.</p>
+      <p id="FilesUploadSuccessful">Your data has been successfully transferred. Please check if your files have been saved correctly.</p>
+      <p id="UserType">User:</p>
+      <p id="VoucherType">Voucher:</p>
+      <p id="GuestType">Guest</p>
+   </div>
+</body>
+</html>

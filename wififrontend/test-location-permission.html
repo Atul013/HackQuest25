@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Location Permission</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2C3E50;
+            margin-top: 0;
+        }
+        button {
+            background: #3B82F6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+        }
+        button:hover {
+            background: #2563EB;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        .success {
+            background: #D1FAE5;
+            color: #065F46;
+            border: 1px solid #10B981;
+        }
+        .error {
+            background: #FEE2E2;
+            color: #991B1B;
+            border: 1px solid #EF4444;
+        }
+        .info {
+            background: #DBEAFE;
+            color: #1E40AF;
+            border: 1px solid #3B82F6;
+            margin-bottom: 20px;
+        }
+        code {
+            background: #F3F4F6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🌍 Location Permission Test</h1>
+        
+        <div class="info" style="display: block;">
+            <strong>Test the geolocation API</strong><br>
+            Click the button below to test if your browser will prompt for location permission.
+        </div>
+        
+        <button onclick="testLocation()">Test Location Permission</button>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        function testLocation() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result info';
+            resultDiv.innerHTML = '⏳ Requesting location permission...<br><small>Please allow when browser prompts</small>';
+            
+            if (!navigator.geolocation) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '❌ <strong>Geolocation not supported</strong><br>Your browser does not support the Geolocation API.';
+                return;
+            }
+            
+            console.log('Requesting location...');
+            
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    // SUCCESS
+                    console.log('Location obtained:', position);
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        ✅ <strong>Location Permission Granted!</strong><br><br>
+                        <strong>Coordinates:</strong><br>
+                        Latitude: <code>${position.coords.latitude.toFixed(6)}</code><br>
+                        Longitude: <code>${position.coords.longitude.toFixed(6)}</code><br>
+                        Accuracy: <code>${Math.round(position.coords.accuracy)} meters</code><br><br>
+                        <small>Your WiFi portal will work correctly! ✓</small>
+                    `;
+                },
+                function(error) {
+                    // ERROR
+                    console.error('Location error:', error);
+                    let errorMsg = '';
+                    
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg = '❌ <strong>Permission Denied</strong><br>You blocked location access. To fix:<br>1. Click the location icon in browser address bar<br>2. Change permission to "Allow"<br>3. Refresh and try again';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg = '❌ <strong>Position Unavailable</strong><br>Location information is not available.<br>Check your device GPS settings.';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg = '❌ <strong>Request Timeout</strong><br>Location request took too long.<br>Try again in a moment.';
+                            break;
+                        default:
+                            errorMsg = `❌ <strong>Unknown Error</strong><br>${error.message}`;
+                    }
+                    
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = errorMsg;
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 0
+                }
+            );
+        }
+        
+        // Show browser info
+        console.log('Browser:', navigator.userAgent);
+        console.log('HTTPS:', window.location.protocol === 'https:');
+        console.log('Geolocation available:', !!navigator.geolocation);
+    </script>
+</body>
+</html>

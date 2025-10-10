@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registration Successful - AlertNet</title>
+<link rel="stylesheet" type="text/css" href="style.css">
+<style>
+body {
+    background: #F3F4F6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+.success-container {
+    text-align: center;
+    max-width: 500px;
+    padding: 40px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.success-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 24px;
+    background: #10B981;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: scaleIn 0.5s ease-out 0.2s both;
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+}
+
+.checkmark {
+    width: 40px;
+    height: 40px;
+    border: 4px solid white;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg);
+    margin-top: -10px;
+}
+
+h1 {
+    font-size: 28px;
+    color: #1F2937;
+    margin: 0 0 12px 0;
+}
+
+p {
+    font-size: 16px;
+    color: #6B7280;
+    line-height: 1.6;
+    margin: 0 0 24px 0;
+}
+
+.user-info {
+    background: #F9FAFB;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 24px 0;
+    text-align: left;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    color: #6B7280;
+    font-size: 14px;
+}
+
+.info-value {
+    color: #1F2937;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.continue-btn {
+    display: inline-block;
+    padding: 14px 32px;
+    background: #2C3E50;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 16px;
+    transition: all 0.2s;
+}
+
+.continue-btn:hover {
+    background: #1A252F;
+    transform: translateY(-2px);
+}
+
+.footer-note {
+    margin-top: 24px;
+    font-size: 13px;
+    color: #9CA3AF;
+}
+</style>
+</head>
+<body>
+    <div class="success-container">
+        <div class="success-icon">
+            <div class="checkmark"></div>
+        </div>
+        
+        <h1>Registration Successful!</h1>
+        <p>You are now connected to the internet and registered for emergency alerts.</p>
+        
+        <div class="user-info" id="userInfo">
+            <div class="info-row">
+                <span class="info-label">Phone Number:</span>
+                <span class="info-value" id="phoneDisplay">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Alert Language:</span>
+                <span class="info-value" id="languageDisplay">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Location:</span>
+                <span class="info-value" id="locationDisplay">-</span>
+            </div>
+            <div class="info-row" id="venueRow" style="display:none;">
+                <span class="info-label">Current Venue:</span>
+                <span class="info-value" id="venueDisplay">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Background Alerts:</span>
+                <span class="info-value" id="backgroundDisplay">-</span>
+            </div>
+        </div>
+        
+        <a href="https://www.google.com" class="continue-btn">Continue Browsing</a>
+        
+        <p class="footer-note">
+            You will receive haptic alerts on your device when emergencies are announced nearby.
+        </p>
+    </div>
+    
+    <script>
+        // Display user information
+        try {
+            var userData = JSON.parse(localStorage.getItem('alertnet_user'));
+            var registrationData = JSON.parse(localStorage.getItem('alertnet_registration'));
+            
+            if (userData) {
+                document.getElementById('phoneDisplay').textContent = userData.phone || '-';
+                
+                var langMap = {
+                    'en': 'English',
+                    'hi': 'Hindi',
+                    'ml': 'Malayalam',
+                    'ta': 'Tamil',
+                    'te': 'Telugu',
+                    'kn': 'Kannada',
+                    'bn': 'Bengali',
+                    'mr': 'Marathi',
+                    'gu': 'Gujarati',
+                    'pa': 'Punjabi'
+                };
+                document.getElementById('languageDisplay').textContent = langMap[userData.language] || userData.language;
+                
+                // Location info
+                if (userData.latitude && userData.longitude) {
+                    document.getElementById('locationDisplay').textContent = 
+                        userData.latitude.toFixed(6) + ', ' + userData.longitude.toFixed(6) + ' ✓';
+                } else {
+                    document.getElementById('locationDisplay').textContent = 'Not shared';
+                }
+                
+                document.getElementById('backgroundDisplay').textContent = userData.backgroundAlerts ? '✓ Enabled' : '✗ Disabled';
+            }
+            
+            // Show backend response (venue info, geofence status)
+            if (registrationData) {
+                if (registrationData.venue) {
+                    document.getElementById('venueRow').style.display = 'flex';
+                    document.getElementById('venueDisplay').textContent = registrationData.venue.name || 'Unknown';
+                }
+                
+                if (registrationData.inGeofence === false) {
+                    document.querySelector('.footer-note').innerHTML = 
+                        '<strong>Note:</strong> You are not currently in a monitored venue. ' +
+                        'Alerts will be delivered when you enter a geofenced area.';
+                }
+            }
+        } catch(e) {
+            console.log('Error loading user data:', e);
+        }
+    </script>
+</body>
+</html>
