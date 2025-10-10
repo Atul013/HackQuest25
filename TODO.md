@@ -2,10 +2,20 @@
 
 ## Executive Summary
 
-**Project Name:** RailAlert - Universal Emergency Alert System for Railway Stations
+**Project Name:** PublicAlert - Universal Emergency Alert System for Public Spaces
 
 ### What It Is:
-A multi-layered emergency alert system that broadcasts critical safety messages to all mobile devices within railway station premises, regardless of device type (Android/iOS) or whether users have pre-installed apps.
+A multi-layered emergency alert system that broadcasts critical safety messages to all mobile devices within any public space (railway stations, airports, concert venues, stadiums, malls, etc.), regardless of device type (Android/iOS) or whether users have pre-installed apps.
+
+**Use Cases:**
+- 🚆 **Railway Stations**: Track delays, platform changes, emergency evacuations
+- ✈️ **Airports**: Gate changes, security alerts, flight updates, emergency procedures
+- 🎵 **Concerts/Events**: Crowd control, security threats, weather warnings, lost & found
+- 🏟️ **Stadiums**: Emergency exits, medical alerts, crowd management
+- 🏢 **Shopping Malls**: Fire alerts, security incidents, store promotions
+- 🏥 **Hospitals**: Emergency codes, visitor restrictions, lockdown procedures
+- 🎓 **Universities**: Campus emergencies, weather alerts, event notifications
+- 🏛️ **Government Buildings**: Security alerts, evacuation procedures
 
 
 ### How It Works:
@@ -13,15 +23,15 @@ A multi-layered emergency alert system that broadcasts critical safety messages 
 Our system uses a **3-layer hybrid approach** to maximize device coverage:
 
 #### **Layer 1: QR Code Onboarding (Primary)**
-- QR code posters placed at station entrances
+- QR code posters placed at venue entrances/key locations
 - Users scan once to register their device
 - Instant notification permission setup
 - No app installation required (Progressive Web App)
-- **Coverage:** 60-70% of entering passengers
+- **Coverage:** 60-70% of entering visitors
 
 #### **Layer 2: WiFi Captive Portal (Secondary)**
-- Integrates with station WiFi network
-- When users connect to "RailwayFreeWiFi", captive portal loads
+- Integrates with venue WiFi network
+- When users connect to public WiFi, captive portal loads
 - Portal checks for active alerts BEFORE allowing internet access
 - Emergency alerts displayed as full-screen overlay
 - User must acknowledge alert to proceed to WiFi
@@ -29,25 +39,71 @@ Our system uses a **3-layer hybrid approach** to maximize device coverage:
 
 #### **Layer 3: Geofencing (Retention)**
 - After initial registration (QR or WiFi), GPS tracking activates
-- Continuously monitors if user is within station boundaries
+- Continuously monitors if user is within venue boundaries
 - Keeps subscription active while user is inside geofence
 - Auto-unsubscribes 30 minutes after exiting
-- Prevents battery drain when away from station
+- Prevents battery drain when away from venue
 - **Coverage:** Maintains accuracy for registered users
 
 ### The Complete User Journey:
 
 ```
-User arrives at station
+User arrives at venue (station/airport/concert/mall)
        ↓
 [PATH A] Scans QR code → Registers device → Gets alerts
        ↓
 [PATH B] Connects to WiFi → Sees portal → Registers → Gets alerts
        ↓
-Geofencing activates → Tracks if user inside station
+Geofencing activates → Tracks if user inside venue
        ↓
 Admin sends emergency alert → Push notification sent
        ↓
+All registered devices in venue receive popup instantly
+       ↓
+User leaves venue → Auto-unsubscribes after 30 min
+```
+
+### Real-World Scenarios:
+
+**🚆 Railway Station - Platform Change**
+```
+Train #12345 platform changed from 3 to 7
+→ Alert sent to all passengers in station
+→ "Your train has been moved to Platform 7"
+→ Reduces confusion, prevents missed trains
+```
+
+**✈️ Airport - Gate Change**
+```
+Flight AA123 gate changed from B12 to C45
+→ Alert sent to all passengers in terminal
+→ "Gate change: Proceed to C45 immediately"
+→ Prevents missed flights, reduces stress
+```
+
+**🎵 Concert - Emergency Evacuation**
+```
+Security threat detected at venue
+→ Alert sent to all attendees
+→ "EVACUATE: Exit via North doors only"
+→ Organized evacuation, prevents panic
+```
+
+**🏟️ Stadium - Weather Alert**
+```
+Lightning storm approaching
+→ Alert sent to all spectators
+→ "Game delayed. Seek shelter in concourse"
+→ Safety compliance, crowd control
+```
+
+**🏢 Mall - Fire Alert**
+```
+Fire detected on 3rd floor
+→ Alert sent to all shoppers
+→ "Fire on Floor 3. Evacuate via nearest exit"
+→ Life-saving, organized evacuation
+```
 All registered devices in station receive popup instantly
        ↓
 User leaves station → Auto-unsubscribes after 30 min
@@ -77,17 +133,23 @@ User leaves station → Auto-unsubscribes after 30 min
 - Fully GDPR compliant
 
 **Instant Deployment:**
-- Can be deployed at any station in < 1 day
+- Can be deployed at any venue in < 1 day
 - Just need: QR code posters + WiFi portal integration
 - No hardware installation required
 - No carrier partnerships needed
+
+**Versatile Applications:**
+- Same system works for any public space
+- Customizable alert types per venue
+- Multi-venue management from single dashboard
+- Scalable from small venues to large complexes
 
 ### Technical Architecture:
 
 ```
 ┌──────────────────────────────────────────────────────┐
 │                   Admin Dashboard                     │
-│  (Railway Staff sends emergency alerts)              │
+│  (Venue operators send alerts & announcements)       │
 └───────────────────┬──────────────────────────────────┘
                     ↓
 ┌───────────────────────────────────────────────────────┐
@@ -96,6 +158,7 @@ User leaves station → Auto-unsubscribes after 30 min
 │  - Web Push Notifications                             │
 │  - Geofence Management                                │
 │  - Alert Distribution                                 │
+│  - Multi-venue Support                                │
 └───────────┬────────────────────────────┬──────────────┘
             ↓                            ↓
 ┌──────────────────────┐    ┌──────────────────────────┐
@@ -123,17 +186,19 @@ User leaves station → Auto-unsubscribes after 30 min
 
 Unlike traditional alert systems that require app installation or government-level cell broadcast authorization, our system:
 - ✅ **Works immediately** - No approval process
-- ✅ **Universal** - No app barriers
+- ✅ **Universal** - No app barriers, works anywhere
 - ✅ **Cost-effective** - Minimal infrastructure
-- ✅ **Scalable** - Can deploy to 100+ stations
+- ✅ **Scalable** - Can deploy to any public space
+- ✅ **Versatile** - Airports, concerts, malls, stations, stadiums
 - ✅ **Future-proof** - Can integrate with official cell broadcast later
 
 ---
 
 ## Project Overview
-**Goal:** Create a hybrid emergency alert system for railway stations using QR codes + WiFi portal + geofencing
+**Goal:** Create a hybrid emergency alert system for public spaces using QR codes + WiFi portal + geofencing
 **Timeline:** 24 hours
 **Approach:** Triple-layer coverage (QR + WiFi + GPS) for maximum reach
+**Target Venues:** Railway stations, airports, concerts, stadiums, malls, and any public gathering space
 
 ---
 
@@ -218,17 +283,24 @@ npm install express firebase-admin web-push cors dotenv body-parser
 #### Firestore Collections:
 
 ```javascript
-// stations collection
+// venues collection (replaces "stations")
 {
   id: "CS001",
   name: "Central Station",
+  type: "railway_station", // railway_station, airport, concert, stadium, mall, hospital, etc.
   location: {
     lat: 28.6139,
     lng: 77.2090
   },
   radius: 500, // meters
   qrCode: "generated_qr_data",
-  active: true
+  active: true,
+  capacity: 50000, // optional: venue capacity
+  openingHours: "24/7", // optional
+  contactInfo: {
+    phone: "+91-xxx-xxx-xxxx",
+    email: "admin@venue.com"
+  }
 }
 
 // subscriptions collection
@@ -240,34 +312,43 @@ npm install express firebase-admin web-push cors dotenv body-parser
     p256dh: "...",
     auth: "..."
   },
-  stationId: "CS001",
+  venueId: "CS001",
+  venueName: "Central Station",
+  venueType: "railway_station",
   registeredAt: Timestamp,
   expiresAt: Timestamp,
   lastSeen: Timestamp,
-  isInGeofence: true
+  isInGeofence: true,
+  registrationSource: "qr" // qr, wifi, manual
 }
 
 // alerts collection
 {
   id: "auto_generated",
-  stationId: "CS001",
+  venueId: "CS001",
+  venueName: "Central Station",
+  venueType: "railway_station",
   title: "Emergency Alert",
   message: "Please evacuate platform 3",
+  alertType: "emergency", // emergency, announcement, update, warning
   severity: "high", // low, medium, high, critical
   createdAt: Timestamp,
   expiresAt: Timestamp,
   active: true,
-  sentCount: 0
+  sentCount: 0,
+  acknowledgedCount: 0
 }
 ```
 
 #### API Endpoints to Create:
 
 ```javascript
-// Station Management
-GET    /api/stations              // List all stations
-GET    /api/stations/:id          // Get station details
-POST   /api/stations              // Add new station (admin)
+// Venue Management (replaces Station)
+GET    /api/venues                // List all venues
+GET    /api/venues/:id            // Get venue details
+GET    /api/venues/type/:type     // Get venues by type (airports, concerts, etc.)
+POST   /api/venues                // Add new venue (admin)
+PUT    /api/venues/:id            // Update venue (admin)
 
 // Subscription Management
 POST   /api/subscribe             // Register device for alerts
@@ -275,12 +356,13 @@ POST   /api/unsubscribe           // Remove subscription
 PUT    /api/subscription/ping     // Update last seen / geofence status
 
 // Alert Management
-GET    /api/alerts/:stationId     // Get active alerts for station
-POST   /api/alerts/send           // Send alert to station (admin)
+GET    /api/alerts/:venueId       // Get active alerts for venue
+POST   /api/alerts/send           // Send alert to venue (admin)
 GET    /api/alerts/history        // Get alert history (admin)
+GET    /api/alerts/type/:type     // Get alerts by type (emergency, announcement, etc.)
 
 // QR Code
-GET    /api/qr/:stationId         // Generate QR code for station
+GET    /api/qr/:venueId           // Generate QR code for venue
 ```
 
 #### Deliverables:
@@ -334,38 +416,70 @@ GET    /api/qr/:stationId         // Generate QR code for station
 
 #### Tasks:
 - [ ] Create QR code generation endpoint
-- [ ] Generate QR codes for demo stations (5-10 stations)
+- [ ] Generate QR codes for demo venues (10-15 different types)
 - [ ] Create landing page for QR scan
 - [ ] Implement device registration on scan
 
 #### QR Code Data Format:
 ```json
 {
-  "stationId": "CS001",
-  "stationName": "Central Station",
+  "venueId": "CS001",
+  "venueName": "Central Station",
+  "venueType": "railway_station",
   "registerUrl": "https://your-app.com/register/CS001",
   "timestamp": "2025-10-10T10:00:00Z"
 }
 ```
 
 #### Frontend Routes:
-- `/` - Home page with map
-- `/register/:stationId` - QR code landing page
+- `/` - Home page with venue map
+- `/register/:venueId` - QR code landing page
 - `/wifi-portal` - WiFi captive portal page
-- `/admin` - Admin dashboard
+- `/admin` - Admin dashboard (multi-venue management)
 - `/alerts` - User alert view
+- `/venues/:type` - List venues by type
 
 #### QR Landing Page Flow:
 1. User scans QR code
 2. Opens `/register/CS001`
-3. Shows station info
+3. Shows venue info (name, type, location)
 4. Requests notification permission
 5. Registers device with backend
 6. Redirects to alert monitoring page
 
+#### Demo Venues to Create:
+
+**Railway Stations (3):**
+- CS001: Central Station
+- SS002: South Station
+- NJ003: North Junction
+
+**Airports (2):**
+- IGI001: Indira Gandhi International Airport - Terminal 1
+- IGI002: Indira Gandhi International Airport - Terminal 3
+
+**Concert Venues (2):**
+- KP001: Kingdom of Dreams - Auditorium
+- JLN001: Jawaharlal Nehru Stadium
+
+**Stadiums (1):**
+- EDEN001: Eden Gardens Cricket Stadium
+
+**Shopping Malls (2):**
+- DLF001: DLF Mall of India
+- SEL001: Select Citywalk
+
+**Hospitals (1):**
+- AIIMS001: AIIMS Delhi
+
+**Universities (1):**
+- DU001: Delhi University - North Campus
+
 #### Deliverables:
-- ✅ QR codes generated for 5-10 demo stations
-- ✅ QR codes saved as PNG files
+- ✅ QR codes generated for 12-15 demo venues
+- ✅ QR codes saved as PNG files with venue names
+- ✅ Registration flow working for all venue types
+- ✅ Device tokens stored in Firestore
 - ✅ Registration flow working
 - ✅ Device tokens stored in Firestore
 
@@ -390,12 +504,12 @@ A captive portal is the web page that appears when you connect to public WiFi (l
 // This route is called when device connects to WiFi
 
 app.get('/wifi-portal', async (req, res) => {
-    // Detect which station based on WiFi network or IP range
-    const stationId = detectStationFromRequest(req);
+    // Detect which venue based on WiFi network or IP range
+    const venueId = detectVenueFromRequest(req);
     
-    // Check if there are active alerts for this station
+    // Check if there are active alerts for this venue
     const alerts = await db.collection('alerts')
-        .where('stationId', '==', stationId)
+        .where('venueId', '==', venueId)
         .where('active', '==', true)
         .get();
     
@@ -404,14 +518,16 @@ app.get('/wifi-portal', async (req, res) => {
         const alert = alerts.docs[0].data();
         res.render('emergency-overlay', {
             alert: alert,
-            stationName: getStationName(stationId),
+            venueName: getVenueName(venueId),
+            venueType: getVenueType(venueId),
             continueUrl: '/wifi-proceed'
         });
     } else {
         // NO ALERTS: Show normal WiFi portal with registration option
         res.render('wifi-portal', {
-            stationId: stationId,
-            stationName: getStationName(stationId),
+            venueId: venueId,
+            venueName: getVenueName(venueId),
+            venueType: getVenueType(venueId),
             hasAlerts: false
         });
     }
@@ -419,16 +535,16 @@ app.get('/wifi-portal', async (req, res) => {
 
 // After user acknowledges alert or registers
 app.post('/wifi-proceed', async (req, res) => {
-    const { deviceToken, stationId, acknowledged } = req.body;
+    const { deviceToken, venueId, acknowledged } = req.body;
     
     // Register device for future alerts
     if (deviceToken) {
-        await registerDevice(deviceToken, stationId, 'wifi');
+        await registerDevice(deviceToken, venueId, 'wifi');
     }
     
     // Log alert acknowledgment
     if (acknowledged) {
-        await logAlertAcknowledgment(stationId, req.ip);
+        await logAlertAcknowledgment(venueId, req.ip);
     }
     
     // Allow WiFi access
@@ -1511,8 +1627,8 @@ REACT_APP_FIREBASE_CONFIG=<your-firebase-config>
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Stations - read only for users
-    match /stations/{stationId} {
+    // Venues (replaces stations) - read only for users
+    match /venues/{venueId} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.token.admin == true;
     }
@@ -1562,74 +1678,88 @@ service cloud.firestore {
 **Demo Flow (3-4 minutes):**
 
 1. **Show QR Code Posters** (20 seconds)
-   - Display printed QR codes for 3-4 demo stations
-   - Explain placement at station entrances
+   - Display printed QR codes for different venue types
+   - Explain universal deployment model
+   - Show railway station, airport, concert venue examples
 
 2. **User Journey - QR Path** (45 seconds)
    - Scan QR code with phone
    - Show registration page opening
+   - Display venue-specific information
    - Grant notification permission
    - Show success message
    - Display map with user location
 
 3. **User Journey - WiFi Path** 🆕 (60 seconds)
    - Open WiFi simulator page
-   - Show list of station WiFi networks
-   - Click to "connect" to a station WiFi
-   - **Scenario A:** Active emergency alert
+   - Show list of venue WiFi networks (mix of types)
+   - Click to "connect" to different venues
+   - **Scenario A:** Active emergency alert (Concert venue)
      - Show red emergency overlay
      - Display critical alert message
      - User must acknowledge to proceed
-   - **Scenario B:** No active alerts
+   - **Scenario B:** No active alerts (Airport)
      - Show normal portal with registration option
      - User can enable alerts or skip
+   - **Scenario C:** Announcement (Mall)
+     - Show blue informational overlay
+     - Store promotion or event update
    - Demonstrate registration flow
 
-4. **Admin Dashboard** (45 seconds)
+4. **Admin Dashboard - Multi-Venue Management** (60 seconds)
    - Open admin panel
-   - Show map with all stations
-   - Display active subscriber count
+   - Show map with ALL venue types (color-coded by type)
+   - Display active subscriber count per venue
    - Show breakdown: QR vs WiFi registrations
-   - Create new emergency alert
+   - Filter by venue type (airports, concerts, stations)
+   - Create new alert for specific venue
+   - Select alert type (emergency, announcement, update)
    - Select severity level
    - Send alert
+   - Show real-time delivery stats
 
-5. **Notification Delivery** (30 seconds)
+5. **Notification Delivery - Cross-Venue** (30 seconds)
    - Show notification appearing on multiple devices
    - Different phones (Android/iOS)
    - Demonstrate instant delivery
+   - Show venue-specific branding in notifications
    - Show notification details
 
 6. **Geofencing Demo** (45 seconds)
    - Show map tracking user location
    - Demonstrate entry into geofence
    - Show subscription becoming active
-   - Simulate leaving station
+   - Simulate leaving venue
    - Show auto-unsubscribe
+   - Demonstrate multiple simultaneous subscriptions (user at airport, then moves to station)
 
 **Technical Highlights (45 seconds):**
 - Cross-platform PWA
 - Triple-layer coverage (QR + WiFi + Geofencing)
+- Universal venue support
 - Real-time geofencing
 - WiFi portal integration
-- Scalable architecture
+- Scalable multi-venue architecture
 - Privacy-focused design
+- Works for ANY public space
 
 #### Presentation Slides Structure:
 
 1. **Title Slide**
-   - Project name: "RailAlert"
-   - Tagline: "Emergency Alerts for Everyone, Everywhere"
+   - Project name: "PublicAlert"
+   - Tagline: "Emergency Alerts for Everyone, Everywhere, Every Venue"
 
 2. **Problem Statement**
-   - Current emergency communication gaps
+   - Current emergency communication gaps in public spaces
    - Need for universal device support
-   - Time-critical nature of railway emergencies
+   - Time-critical nature of emergencies (fires, security threats, weather)
+   - Different venues, same problem
 
 3. **Solution Overview**
-   - Hybrid QR + geofencing approach
+   - Hybrid QR + WiFi + geofencing approach
    - Progressive Web App architecture
    - Push notification system
+   - Universal platform for any venue type
 
 4. **Technical Architecture**
    - System diagram
@@ -1640,25 +1770,41 @@ service cloud.firestore {
    - QR code onboarding
    - WiFi portal integration 🆕
    - Automatic geofencing
+   - Multi-venue support 🆕
    - Severity-based alerts
    - Admin dashboard
    - Triple-layer coverage
+   - Universal deployment model
 
 6. **Demo**
    - Live demonstration or video
+   - Show multiple venue types
 
 7. **Impact & Scalability**
    - Cost analysis
    - Deployment timeline
-   - Scaling to 100+ stations
+   - Scaling to 1000+ venues
+   - Market potential (airports, concerts, malls, stadiums, hospitals)
+   - Revenue model (B2B SaaS)
 
 8. **Future Enhancements**
    - Multi-language support
-   - Integration with railway APIs
+   - Integration with venue management systems
    - Analytics dashboard
    - SMS fallback for feature phones
+   - AI-powered crowd detection
+   - Integration with official cell broadcast
 
-9. **Thank You**
+9. **Market Opportunity** 🆕
+   - Railway stations: 8,000+ in India
+   - Airports: 130+ in India
+   - Concert venues: 500+ major venues
+   - Shopping malls: 5,000+ nationwide
+   - Stadiums: 200+ sports venues
+   - Hospitals: 70,000+ registered
+   - Total addressable market: 80,000+ venues
+
+10. **Thank You**
    - Team members
    - Contact information
    - QR code to try the app
@@ -1666,23 +1812,28 @@ service cloud.firestore {
 #### README.md Structure:
 
 ```markdown
-# RailAlert - Emergency Alert System for Railway Stations
+# PublicAlert - Universal Emergency Alert System for Public Spaces
 
 ## Problem
-Railway stations need a universal emergency communication system that works on all devices without requiring app installation.
+Public spaces (railway stations, airports, concerts, malls) need a universal emergency communication system that works on all devices without requiring app installation.
 
 ## Solution
-Hybrid QR code + geofencing system using Progressive Web App technology.
+Hybrid QR code + WiFi portal + geofencing system using Progressive Web App technology. Works for ANY public venue.
+
+## Use Cases
+🚆 Railway Stations | ✈️ Airports | 🎵 Concerts | 🏟️ Stadiums | 🏢 Malls | 🏥 Hospitals | 🎓 Universities
 
 ## Features
 - ✅ QR code quick registration
-- ✅ WiFi captive portal integration 🆕
+- ✅ WiFi captive portal integration
 - ✅ Automatic geofencing
+- ✅ Multi-venue support
 - ✅ Cross-platform push notifications
 - ✅ Real-time alert delivery
 - ✅ Admin dashboard
 - ✅ Severity-based alerts
 - ✅ Triple-layer coverage (QR + WiFi + GPS)
+- ✅ Universal deployment model
 
 ## Tech Stack
 - Frontend: React + PWA
@@ -1697,6 +1848,18 @@ Hybrid QR code + geofencing system using Progressive Web App technology.
 - Live Demo: https://your-app.vercel.app
 - Admin Panel: https://your-app.vercel.app/admin
 - Password: hackathon2025
+
+## Supported Venue Types
+- Railway Stations
+- Airports
+- Concert Venues
+- Sports Stadiums
+- Shopping Malls
+- Hospitals
+- Universities
+- Government Buildings
+- Theme Parks
+- Convention Centers
 
 ## Architecture
 [System diagram]
@@ -1717,7 +1880,7 @@ MIT
 #### Physical Demo Materials:
 
 **Print for Demo:**
-- [ ] 5-10 QR code posters (A4 size)
+- [ ] 10-15 QR code posters (A4 size) - Different venue types
 - [ ] Station name labels
 - [ ] Demo instructions card
 - [ ] Backup QR codes (in case of damage)
