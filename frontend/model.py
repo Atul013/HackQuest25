@@ -59,8 +59,9 @@ class LiveAudioTranscriber:
         self.max_recording_duration = 45.0  # Increased to 45 seconds for longer announcements
         self.volume_threshold = 300  # Reduced threshold for more sensitive detection
         
-        # TEST MODE - Enable to accept all transcriptions
-        self.test_mode = True  # SET TO FALSE FOR PRODUCTION
+        # Configuration options
+        self.test_mode = True  # SET TO FALSE FOR PRODUCTION - accepts all transcriptions for development
+        self.cleanup_after_minutes = 10  # Clear transcription_text after this many minutes
         
         # Audio buffer for VAD
         self.audio_buffer = deque()
@@ -334,29 +335,31 @@ class LiveAudioTranscriber:
             return 'other'
     
     def delete_old_transcriptions(self):
-        """Delete transcriptions older than 10 minutes"""
+        """Clear transcription_text from records older than configured minutes (keep records but remove sensitive text)"""
         try:
-            cutoff_time = (datetime.now() - timedelta(minutes=10)).isoformat()
+            cutoff_time = (datetime.now() - timedelta(minutes=self.cleanup_after_minutes)).isoformat()
             
+            # Update old records to clear transcription_text instead of deleting entire records
             result = self.supabase.table('transcriptions')\
-                .delete()\
+                .update({'transcription_text': '[DELETED AFTER 10 MIN]'})\
                 .lt('created_at', cutoff_time)\
+                .neq('transcription_text', '[DELETED AFTER 10 MIN]')\
                 .execute()
             
-            deleted_count = len(result.data) if result.data else 0
-            if deleted_count > 0:
-                logger.info(f"Deleted {deleted_count} old transcriptions")
+            cleared_count = len(result.data) if result.data else 0
+            if cleared_count > 0:
+                logger.info(f"Cleared transcription_text from {cleared_count} old records ({self.cleanup_after_minutes}+ minutes)")
             
         except Exception as e:
-            logger.error(f"Error deleting old transcriptions: {e}")
+            logger.error(f"Error clearing old transcription texts: {e}")
     
     def cleanup_worker(self):
-        """Background worker to clean up old transcriptions - DISABLED FOR TESTING"""
-        logger.info("Auto-cleanup disabled - transcriptions will persist for testing")
+        """Background worker to clear transcription_text from old records every 5 minutes"""
+        logger.info("Auto-cleanup enabled - transcription_text will be cleared after 10 minutes (records preserved)")
         while self.is_running:
             try:
-                # self.delete_old_transcriptions()  # Commented out to keep records
-                time.sleep(300)  # Check every 5 minutes instead of 1 minute
+                self.delete_old_transcriptions()  # Now clears text instead of deleting records
+                time.sleep(300)  # Check every 5 minutes
             except Exception as e:
                 logger.error(f"Cleanup worker error: {e}")
                 time.sleep(300)
