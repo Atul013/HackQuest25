@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geofence Visual Demo - PublicAlert</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- React and Babel -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      overflow: hidden;
+    }
+    
+    #root {
+      width: 100vw;
+      height: 100vh;
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+    
+    button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      transition: all 0.2s;
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // GeofenceMap Component
+    const GeofenceMap = ({ userLocation, venues, selectedVenueId, showAllVenues }) => {
+      const mapRef = useRef(null);
+      const mapInstanceRef = useRef(null);
+      const markersRef = useRef({ user: null, venues: [], circles: [] });
+      const [mapReady, setMapReady] = useState(false);
+
+      // Initialize map
+      useEffect(() => {
+        if (!mapRef.current || mapInstanceRef.current) return;
+
+        const map = L.map(mapRef.current, {
+          center: [10.0280, 76.3100],
+          zoom: 12,
+          zoomControl: true
+        });
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 19
+        }).addTo(map);
+
+        mapInstanceRef.current = map;
+        setMapReady(true);
+
+        return () => {
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.remove();
+            mapInstanceRef.current = null;
+          }
+        };
+      }, []);
+
+      // Update venues
+      useEffect(() => {
+        if (!mapReady || !mapInstanceRef.current || !venues.length) return;
+
+        const map = mapInstanceRef.current;
+
+        // Clear existing markers
+        markersRef.current.venues.forEach(m => m.remove());
+        markersRef.current.circles.forEach(c => c.remove());
+        markersRef.current.venues = [];
+        markersRef.current.circles = [];
+
+        const venuesToShow = showAllVenues ? venues : venues.filter(v => v.id === selectedVenueId);
+        const bounds = [];
+
+        venuesToShow.forEach(venue => {
+          const { latitude, longitude, geofence_radius, geofence_polygon, geofence_type, name, id } = venue;
+          const isSelected = id === selectedVenueId;
+
+          // Venue marker (center point)
+          const marker = L.circleMarker([latitude, longitude], {
+            radius: 8,
+            fillColor: isSelected ? '#ef4444' : '#3b82f6',
+            color: 'white',
+            weight: 3,
+            opacity: 1,
+            fillOpacity: 1
+          }).addTo(map).bindPopup(`
+            <div style="text-align: center;">
+              <strong>${name}</strong><br/>
+              <small>Lat: ${latitude.toFixed(4)}</small><br/>
+              <small>Lon: ${longitude.toFixed(4)}</small><br/>
+              <strong>Type: ${geofence_type || 'circle'}</strong>
+            </div>
+          `);
+
+          markersRef.current.venues.push(marker);
+
+          // Draw geofence shape
+          let geofenceShape;
+          
+          if (geofence_type === 'polygon' && geofence_polygon) {
+            // Draw polygon geofence
+            geofenceShape = L.polygon(geofence_polygon, {
+              color: isSelected ? '#ef4444' : '#3b82f6',
+              fillColor: isSelected ? '#ef4444' : '#3b82f6',
+              fillOpacity: 0.15,
+              weight: 3,
+              dashArray: isSelected ? null : '10, 10'
+            }).addTo(map);
+
+            geofenceShape.bindTooltip(`${name} - Custom boundary`, {
+              permanent: false,
+              direction: 'center'
+            });
+
+            // Add all polygon points to bounds
+            geofence_polygon.forEach(point => bounds.push(point));
+          } else if (geofence_radius) {
+            // Draw circle geofence (fallback)
+            geofenceShape = L.circle([latitude, longitude], {
+              radius: geofence_radius,
+              color: isSelected ? '#ef4444' : '#3b82f6',
+              fillColor: isSelected ? '#ef4444' : '#3b82f6',
+              fillOpacity: 0.15,
+              weight: 2,
+              dashArray: isSelected ? null : '10, 10'
+            }).addTo(map);
+
+            geofenceShape.bindTooltip(`${name} - ${geofence_radius}m`, {
+              permanent: false,
+              direction: 'center'
+            });
+            
+            bounds.push([latitude, longitude]);
+          }
+
+          markersRef.current.circles.push(geofenceShape);
+        });
+
+        if (bounds.length > 0) {
+          map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+        }
+      }, [venues, selectedVenueId, showAllVenues, mapReady]);
+
+      // Update user location
+      useEffect(() => {
+        if (!mapReady || !mapInstanceRef.current) return;
+
+        const map = mapInstanceRef.current;
+
+        if (markersRef.current.user) {
+          markersRef.current.user.remove();
+        }
+
+        if (!userLocation) return;
+
+        const { latitude, longitude, isInside, venueName } = userLocation;
+
+        const userMarker = L.circleMarker([latitude, longitude], {
+          radius: 8,
+          fillColor: isInside ? '#10b981' : '#f59e0b',
+          color: 'white',
+          weight: 3,
+          opacity: 1,
+          fillOpacity: 1
+        }).addTo(map).bindPopup(`
+          <div style="text-align: center;">
+            <strong>📱 Your Location</strong><br/>
+            <small>Lat: ${latitude.toFixed(6)}</small><br/>
+            <small>Lon: ${longitude.toFixed(6)}</small><br/>
+            <div style="
+              margin-top: 8px;
+              padding: 4px 8px;
+              border-radius: 12px;
+              background: ${isInside ? '#10b981' : '#f59e0b'};
+              color: white;
+              font-weight: bold;
+            ">
+              ${isInside ? '✅ INSIDE' : '❌ OUTSIDE'}
+              ${venueName ? `<br/>${venueName}` : ''}
+            </div>
+          </div>
+        `);
+
+        // Pulsing animation
+        const pulseCircle = L.circle([latitude, longitude], {
+          radius: 50,
+          color: isInside ? '#10b981' : '#f59e0b',
+          fillColor: isInside ? '#10b981' : '#f59e0b',
+          fillOpacity: 0.2,
+          weight: 2
+        }).addTo(map);
+
+        markersRef.current.user = L.layerGroup([userMarker, pulseCircle]).addTo(map);
+        map.panTo([latitude, longitude]);
+      }, [userLocation, mapReady]);
+
+      return (
+        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+          <div ref={mapRef} style={{ width: '100%', height: '100%', minHeight: '400px' }} />
+          
+          {!mapReady && (
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(255,255,255,0.9)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '24px', marginBottom: '10px' }}>🗺️</div>
+                <div>Loading map...</div>
+              </div>
+            </div>
+          )}
+
+          <div style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            background: 'white',
+            padding: '12px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            fontSize: '12px',
+            zIndex: 1000
+          }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>Legend</div>
+            <div>🔵 Venue Center</div>
+            <div>📐 Custom Boundary</div>
+            <div>🟢 Inside</div>
+            <div>🟠 Outside</div>
+          </div>
+        </div>
+      );
+    };
+
+    // Main App Component
+    const App = () => {
+      const [venues] = useState([
+        { 
+          id: 1, 
+          name: 'Ernakulam Junction Railway Station', 
+          latitude: 9.9710, 
+          longitude: 76.2910,
+          geofence_type: 'polygon',
+          // Precise KML polygon from Google Maps
+          geofence_polygon: [
+            [9.9742998, 76.2899817],
+            [9.9693476, 76.2904496],
+            [9.9691786, 76.2903102],
+            [9.9685445, 76.290396],
+            [9.9685234, 76.2907393],
+            [9.9657971, 76.2917371],
+            [9.9657232, 76.292059],
+            [9.9669172, 76.2921341],
+            [9.9686677, 76.2919773],
+            [9.9720914, 76.2911941],
+            [9.9743315, 76.2904431],
+            [9.9742998, 76.2899817]  // Close polygon
+          ]
+        },
+        { 
+          id: 2, 
+          name: 'Cochin International Airport', 
+          latitude: 10.1540, 
+          longitude: 76.3950,
+          geofence_type: 'polygon',
+          // Precise KML polygon covering terminals and runways
+          geofence_polygon: [
+            [10.159892, 76.385748],
+            [10.1566815, 76.3858338],
+            [10.1546539, 76.3828727],
+            [10.1545272, 76.3802549],
+            [10.1486976, 76.3804265],
+            [10.1499649, 76.4200803],
+            [10.1545272, 76.4195653],
+            [10.1539358, 76.4045879],
+            [10.1568083, 76.4044162],
+            [10.1578221, 76.4011117],
+            [10.1603144, 76.4005967],
+            [10.159892, 76.385748]  // Close polygon
+          ]
+        },
+        { 
+          id: 3, 
+          name: 'Lulu Mall Kochi', 
+          latitude: 10.0280, 
+          longitude: 76.3100,
+          geofence_type: 'polygon',
+          // Precise KML polygon matching exact mall footprint
+          geofence_polygon: [
+            [10.0305599, 76.3069647],
+            [10.027158, 76.3063425],
+            [10.0264184, 76.3058275],
+            [10.0252774, 76.3066643],
+            [10.0250027, 76.3086599],
+            [10.0265029, 76.3098615],
+            [10.0270101, 76.3107842],
+            [10.0257, 76.3120073],
+            [10.0258479, 76.3130372],
+            [10.0283835, 76.3127583],
+            [10.0300316, 76.3099473],
+            [10.0305599, 76.3069647]  // Close polygon
+          ]
+        },
+        { 
+          id: 4, 
+          name: 'Rajagiri School of Engineering & Technology', 
+          latitude: 9.9935, 
+          longitude: 76.3580,
+          geofence_type: 'polygon',
+          // Precise KML polygon covering campus
+          geofence_polygon: [
+            [9.994284, 76.3552391],
+            [9.9940852, 76.3552435],
+            [9.9936414, 76.355104],
+            [9.9932293, 76.3551791],
+            [9.9927327, 76.3558228],
+            [9.9924369, 76.3561876],
+            [9.9922256, 76.3566811],
+            [9.9919826, 76.3572283],
+            [9.9917059, 76.3590908],
+            [9.9917587, 76.3597452],
+            [9.9917164, 76.3602066],
+            [9.9917481, 76.360507],
+            [9.9920228, 76.3605284],
+            [9.9922342, 76.3606679],
+            [9.99253, 76.3607001],
+            [9.9928576, 76.3608181],
+            [9.9930583, 76.3608932],
+            [9.9930794, 76.3607323],
+            [9.9935655, 76.3605714],
+            [9.9936289, 76.3602388],
+            [9.9938508, 76.3602173],
+            [9.9939036, 76.3598847],
+            [9.9941149, 76.3597989],
+            [9.994844, 76.3598203],
+            [9.9944742, 76.3590586],
+            [9.994041, 76.3581574],
+            [9.9940938, 76.3572454],
+            [9.994284, 76.3552391]  // Close polygon
+          ]
+        }
+      ]);
+
+      const [userLocation, setUserLocation] = useState(null);
+      const [selectedVenue, setSelectedVenue] = useState(null);
+      const [manualLat, setManualLat] = useState('9.9710');
+      const [manualLon, setManualLon] = useState('76.2910');
+
+      const calculateDistance = (lat1, lon1, lat2, lon2) => {
+        const R = 6371000;
+        const φ1 = lat1 * Math.PI / 180;
+        const φ2 = lat2 * Math.PI / 180;
+        const Δφ = (lat2 - lat1) * Math.PI / 180;
+        const Δλ = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+      };
+
+      // Ray casting algorithm for point-in-polygon
+      const isPointInPolygon = (lat, lon, polygon) => {
+        let inside = false;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+          const [lat_i, lon_i] = polygon[i];
+          const [lat_j, lon_j] = polygon[j];
+          
+          const intersect = ((lon_i > lon) !== (lon_j > lon)) &&
+            (lat < (lat_j - lat_i) * (lon - lon_i) / (lon_j - lon_i) + lat_i);
+          
+          if (intersect) inside = !inside;
+        }
+        return inside;
+      };
+
+      const checkGeofence = (lat, lon) => {
+        for (const venue of venues) {
+          if (venue.geofence_type === 'polygon' && venue.geofence_polygon) {
+            // Use polygon detection
+            if (isPointInPolygon(lat, lon, venue.geofence_polygon)) {
+              return { isInside: true, venue };
+            }
+          } else if (venue.geofence_radius) {
+            // Fallback to circle detection
+            const distance = calculateDistance(lat, lon, venue.latitude, venue.longitude);
+            if (distance <= venue.geofence_radius) {
+              return { isInside: true, venue };
+            }
+          }
+        }
+        return { isInside: false, venue: null };
+      };
+
+      const updateUserLocation = (lat, lon) => {
+        const { isInside, venue } = checkGeofence(lat, lon);
+        setUserLocation({
+          latitude: lat,
+          longitude: lon,
+          isInside,
+          venueName: venue ? venue.name : null
+        });
+      };
+
+      const testLocations = [
+        { name: 'Inside Ernakulam Junction', lat: 9.9710, lon: 76.2910, expected: 'INSIDE' },
+        { name: 'Outside Ernakulam Junction', lat: 9.9750, lon: 76.2910, expected: 'OUTSIDE' },
+        { name: 'Inside Cochin Airport', lat: 10.1540, lon: 76.3950, expected: 'INSIDE' },
+        { name: 'Inside Lulu Mall', lat: 10.0280, lon: 76.3100, expected: 'INSIDE' },
+        { name: 'Inside Rajagiri Campus', lat: 9.9935, lon: 76.3580, expected: 'INSIDE' }
+      ];
+
+      return (
+        <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            padding: '20px'
+          }}>
+            <h1 style={{ margin: '0 0 8px 0' }}>🗺️ Geofence Visualization Demo</h1>
+            <p style={{ margin: 0, opacity: 0.9 }}>See the geofence boundaries in action</p>
+          </div>
+
+          <div style={{ flex: 1, display: 'flex', gap: '20px', padding: '20px', overflow: 'hidden' }}>
+            <div style={{ flex: '0 0 70%' }}>
+              <GeofenceMap
+                userLocation={userLocation}
+                venues={venues}
+                selectedVenueId={selectedVenue}
+                showAllVenues={true}
+              />
+            </div>
+
+            <div style={{ flex: '0 0 30%', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {userLocation && (
+                <div style={{
+                  padding: '16px',
+                  background: userLocation.isInside ? '#d1fae5' : '#fed7aa',
+                  border: `2px solid ${userLocation.isInside ? '#10b981' : '#f59e0b'}`,
+                  borderRadius: '8px'
+                }}>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '8px' }}>
+                    {userLocation.isInside ? '✅ INSIDE GEOFENCE' : '❌ OUTSIDE GEOFENCE'}
+                  </div>
+                  {userLocation.venueName && <div style={{ fontWeight: 'bold' }}>📍 {userLocation.venueName}</div>}
+                  <div style={{ fontSize: '12px', marginTop: '8px', opacity: 0.8 }}>
+                    Lat: {userLocation.latitude.toFixed(6)}<br/>
+                    Lon: {userLocation.longitude.toFixed(6)}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ padding: '16px', background: 'white', border: '1px solid #ddd', borderRadius: '8px' }}>
+                <h3 style={{ margin: '0 0 12px 0' }}>🎯 Set Location</h3>
+                <input
+                  type="text"
+                  value={manualLat}
+                  onChange={(e) => setManualLat(e.target.value)}
+                  placeholder="Latitude"
+                  style={{ width: '100%', padding: '8px', marginBottom: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                />
+                <input
+                  type="text"
+                  value={manualLon}
+                  onChange={(e) => setManualLon(e.target.value)}
+                  placeholder="Longitude"
+                  style={{ width: '100%', padding: '8px', marginBottom: '12px', border: '1px solid #ddd', borderRadius: '4px' }}
+                />
+                <button
+                  onClick={() => updateUserLocation(parseFloat(manualLat), parseFloat(manualLon))}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: '#8b5cf6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Update Location
+                </button>
+              </div>
+
+              <div style={{ padding: '16px', background: 'white', border: '1px solid #ddd', borderRadius: '8px' }}>
+                <h3 style={{ margin: '0 0 12px 0' }}>⚡ Quick Tests</h3>
+                {testLocations.map((loc, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setManualLat(loc.lat.toString());
+                      setManualLon(loc.lon.toString());
+                      updateUserLocation(loc.lat, loc.lon);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      marginBottom: '8px',
+                      background: '#f3f4f6',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <strong>{loc.name}</strong><br/>
+                    <small>Expected: {loc.expected}</small>
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ padding: '16px', background: 'white', border: '1px solid #ddd', borderRadius: '8px' }}>
+                <h3 style={{ margin: '0 0 12px 0' }}>📍 Venues</h3>
+                {venues.map(venue => (
+                  <div
+                    key={venue.id}
+                    onClick={() => setSelectedVenue(selectedVenue === venue.id ? null : venue.id)}
+                    style={{
+                      padding: '8px',
+                      marginBottom: '8px',
+                      background: selectedVenue === venue.id ? '#dbeafe' : '#f9fafb',
+                      border: `1px solid ${selectedVenue === venue.id ? '#3b82f6' : '#e5e7eb'}`,
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '12px'
+                    }}
+                  >
+                    <strong>{venue.name}</strong><br/>
+                    <small>{venue.geofence_type === 'polygon' ? '📐 Custom Shape' : `⭕ ${venue.geofence_radius}m`}</small>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
