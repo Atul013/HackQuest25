@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PublicAlert - Supabase Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .success {
+            color: green;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .error {
+            color: red;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .result {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 PublicAlert - Supabase Test</h1>
+            <p>Testing direct Supabase connection (No Express server needed!)</p>
+            <div id="connection-status"></div>
+        </div>
+
+        <!-- Quick Connection Test -->
+        <div class="test-section">
+            <h3>🔍 Quick Connection Test</h3>
+            <button onclick="testQuickConnection()">Test API Key</button>
+            <div id="quick-test-result"></div>
+        </div>
+
+        <!-- Health Check -->
+        <div class="test-section">
+            <h3>🔍 Health Check (Requires SQL Functions)</h3>
+            <button onclick="testHealthCheck()">Test Database Functions</button>
+            <div id="health-result"></div>
+        </div>
+
+        <!-- Admin Login -->
+        <div class="test-section">
+            <h3>🔐 Admin Login</h3>
+            <div class="form-group">
+                <label>Password:</label>
+                <input type="password" id="admin-password" value="hackathon2025" placeholder="Enter admin password">
+            </div>
+            <button onclick="testAdminLogin()">Login as Admin</button>
+            <div id="login-result"></div>
+        </div>
+
+        <!-- Basic Venues Test -->
+        <div class="test-section">
+            <h3>🏢 Basic Venues (Direct Table Access)</h3>
+            <button onclick="testBasicVenues()">Get Venues (No Functions)</button>
+            <button onclick="testCreateVenue()">Create Test Venue (Requires Functions)</button>
+            <div id="venues-result"></div>
+        </div>
+
+        <!-- SQL Script Status -->
+        <div class="test-section">
+            <h3>📋 Database Setup Status</h3>
+            <p><strong>Important:</strong> To test all functionality, you need to run the SQL script first!</p>
+            <ol>
+                <li>Go to <strong>Supabase Dashboard</strong> → <strong>SQL Editor</strong></li>
+                <li>Click <strong>"New Query"</strong></li>
+                <li>Copy content from <code>supabase-functions.sql</code></li>
+                <li>Click <strong>"Run"</strong></li>
+                <li>Look for success message: <em>"Supabase-Only Database Functions created successfully! 🎉"</em></li>
+            </ol>
+            <button onclick="testFunctionsExist()">Check if Functions Exist</button>
+            <div id="functions-result"></div>
+        </div>
+    </div>
+
+    <!-- Supabase Client Script -->
+    <script type="module">
+        import { createClient } from 'https://cdn.skypack.dev/@supabase/supabase-js'
+
+        // Initialize Supabase client with CORRECT API key
+        const supabaseUrl = 'https://akblmbpxxotmebzghczj.supabase.co'
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYmxtYnB4eG90bWViemdoY3pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwNzQxMDUsImV4cCI6MjA3NTY1MDEwNX0.6d8XmmmoSh0hY8OWoymIEX7UnQU6qpgyQsyIe7_KHtI'
+        
+        window.supabase = createClient(supabaseUrl, supabaseAnonKey)
+        
+        // Generate device token
+        let deviceToken = localStorage.getItem('publicalert_device_token')
+        if (!deviceToken) {
+            deviceToken = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
+            localStorage.setItem('publicalert_device_token', deviceToken)
+        }
+        window.deviceToken = deviceToken
+
+        // Utility functions
+        window.showResult = (elementId, data, isError = false) => {
+            const element = document.getElementById(elementId)
+            element.innerHTML = `<div class="${isError ? 'error' : 'success'}">
+                ${isError ? '❌ Error:' : '✅ Success:'} 
+            </div><div class="result">${JSON.stringify(data, null, 2)}</div>`
+        }
+
+        window.showStatus = (message, isError = false) => {
+            const statusEl = document.getElementById('connection-status')
+            statusEl.innerHTML = `<div class="status ${isError ? 'error' : 'connected'}">${message}</div>`
+        }
+
+        // Test functions
+        window.testQuickConnection = async () => {
+            try {
+                showStatus('Testing API connection...')
+                
+                // Simple test - try to access the REST API
+                const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+                    headers: {
+                        'apikey': supabaseAnonKey,
+                        'Authorization': `Bearer ${supabaseAnonKey}`
+                    }
+                })
+                
+                if (response.ok) {
+                    showStatus('✅ API Key Valid - Supabase Connected!', false)
+                    showResult('quick-test-result', {
+                        status: 'Connected',
+                        api_key: 'Valid',
+                        url: supabaseUrl,
+                        message: 'Ready to test database functions'
+                    })
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+                }
+            } catch (error) {
+                showStatus('❌ Connection Failed', true)
+                showResult('quick-test-result', {
+                    error: error.message,
+                    suggestion: 'Check your API key and internet connection'
+                }, true)
+            }
+        }
+
+        window.testHealthCheck = async () => {
+            try {
+                const { data, error } = await supabase.rpc('health_check')
+                if (error) throw error
+                showResult('health-result', data)
+            } catch (error) {
+                showResult('health-result', {
+                    error: error.message,
+                    suggestion: 'Make sure you have run the SQL script to create the health_check function'
+                }, true)
+            }
+        }
+
+        window.testAdminLogin = async () => {
+            try {
+                const password = document.getElementById('admin-password').value
+                const { data, error } = await supabase.rpc('admin_login', { password_input: password })
+                if (error) throw error
+                showResult('login-result', data)
+            } catch (error) {
+                showResult('login-result', {
+                    error: error.message,
+                    suggestion: 'Make sure you have run the SQL script to create the admin_login function'
+                }, true)
+            }
+        }
+
+        window.testBasicVenues = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('venues')
+                    .select('*')
+                    .limit(5)
+                    
+                if (error) throw error
+                showResult('venues-result', {
+                    message: 'Direct table access successful',
+                    venues_count: data.length,
+                    venues: data
+                })
+            } catch (error) {
+                showResult('venues-result', {
+                    error: error.message,
+                    suggestion: 'This tests basic table access. Error might be due to RLS policies or missing tables.'
+                }, true)
+            }
+        }
+
+        window.testCreateVenue = async () => {
+            try {
+                const { data, error } = await supabase.rpc('create_venue', {
+                    p_name: 'Test Venue ' + Date.now(),
+                    p_type: 'university',
+                    p_address: '123 Test Street, Test City',
+                    p_latitude: 40.7128,
+                    p_longitude: -74.0060,
+                    p_radius: 150,
+                    p_capacity: 1000
+                })
+                if (error) throw error
+                showResult('venues-result', data)
+            } catch (error) {
+                showResult('venues-result', {
+                    error: error.message,
+                    suggestion: 'Make sure you have run the SQL script to create the create_venue function'
+                }, true)
+            }
+        }
+
+        window.testFunctionsExist = async () => {
+            try {
+                // Test if our custom functions exist by calling them
+                const tests = [
+                    { name: 'health_check', test: () => supabase.rpc('health_check') },
+                    { name: 'admin_login', test: () => supabase.rpc('admin_login', { password_input: 'test' }) }
+                ]
+                
+                const results = {}
+                
+                for (const test of tests) {
+                    try {
+                        await test.test()
+                        results[test.name] = '✅ Function exists'
+                    } catch (error) {
+                        if (error.message.includes('function') && error.message.includes('does not exist')) {
+                            results[test.name] = '❌ Function missing'
+                        } else {
+                            results[test.name] = '✅ Function exists (but test failed)'
+                        }
+                    }
+                }
+                
+                showResult('functions-result', {
+                    message: 'Database functions status',
+                    functions: results,
+                    next_step: Object.values(results).some(r => r.includes('❌')) 
+                        ? 'Run the SQL script from supabase-functions.sql' 
+                        : 'All functions are ready!'
+                })
+            } catch (error) {
+                showResult('functions-result', { error: error.message }, true)
+            }
+        }
+
+        // Auto-run connection test on load
+        window.addEventListener('load', () => {
+            setTimeout(testQuickConnection, 1000)
+        })
+    </script>
+</body>
+</html>
