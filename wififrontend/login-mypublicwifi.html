@@ -403,6 +403,13 @@ function sendRegistrationToBackend(userData) {
                 localStorage.setItem('alertnet_registration', JSON.stringify(backendResult));
             } catch(e) {}
             
+            // Trigger success haptic feedback
+            hapticService.triggerAlert({
+                severity: 'low',
+                type: 'success',
+                morseMessage: 'ALERT'
+            });
+            
             // Show success and redirect
             ShowInfoMessage("LoginSuccessful");
             setTimeout(function() {
