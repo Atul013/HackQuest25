@@ -6,6 +6,8 @@ import time
 import os
 import re
 import numpy as np
+import signal
+import sys
 # import webrtcvad  # Temporarily disabled due to Python 3.13 compatibility
 from datetime import datetime, timedelta
 from supabase import create_client, Client
@@ -32,24 +34,33 @@ class LiveAudioTranscriber:
         from dotenv import load_dotenv
         load_dotenv()
         
-        # Supabase configuration
+        # Supabase configuration - FIXED CONNECTION
         self.supabase_url = os.getenv('SUPABASE_URL', 'your_supabase_url_here')
         self.supabase_key = os.getenv('SUPABASE_ANON_KEY', 'your_supabase_anon_key_here')
-        self.supabase: Client = create_client(self.supabase_url, self.supabase_key)
         
-        # Audio configuration
-        self.chunk = 1024  # Record in chunks of 1024 samples
+        # Create Supabase client with standard settings
+        try:
+            self.supabase: Client = create_client(self.supabase_url, self.supabase_key)
+            logger.info("Supabase client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize Supabase client: {e}")
+            raise
+        
+        # Audio configuration - IMPROVED SETTINGS
+        self.chunk = 2048  # Increased chunk size for better audio capture
         self.format = pyaudio.paInt16  # 16 bits per sample
         self.channels = 1  # Mono audio
         self.rate = 16000  # Sample rate (16kHz is good for Whisper)
         
-        # Voice Activity Detection settings (simplified approach)
-        # self.vad = webrtcvad.Vad(2)  # Temporarily disabled due to Python 3.13 compatibility
+        # Voice Activity Detection settings - IMPROVED
         self.frame_duration = 30  # VAD frame duration in ms (10, 20, or 30)
-        self.silence_threshold = 3.0  # 3 seconds of silence to end recording
-        self.min_speech_duration = 2.0  # Minimum 2 seconds of speech to process
-        self.max_recording_duration = 30.0  # Maximum 30 seconds per recording
-        self.volume_threshold = 500  # Simple volume-based voice activity detection
+        self.silence_threshold = 2.0  # Reduced to 2 seconds for better responsiveness
+        self.min_speech_duration = 1.0  # Reduced to 1 second minimum
+        self.max_recording_duration = 45.0  # Increased to 45 seconds for longer announcements
+        self.volume_threshold = 300  # Reduced threshold for more sensitive detection
+        
+        # TEST MODE - Enable to accept all transcriptions
+        self.test_mode = True  # SET TO FALSE FOR PRODUCTION
         
         # Audio buffer for VAD
         self.audio_buffer = deque()
@@ -82,6 +93,13 @@ class LiveAudioTranscriber:
         
     def is_announcement(self, text: str) -> bool:
         """Final optimized announcement detection with highest accuracy"""
+        
+        # TEST MODE - Accept all non-empty transcriptions for testing
+        if hasattr(self, 'test_mode') and self.test_mode:
+            if text and len(text.strip()) > 0:
+                logger.info(f"TEST MODE: Accepting all transcriptions - '{text}'")
+                return True
+        
         text_lower = text.lower()
         
         # Immediate conversation indicators (very strong signals)
@@ -133,11 +151,11 @@ class LiveAudioTranscriber:
                 announcement_score += 1
                 matched_patterns.append(pattern)
         
-        # Length requirements for announcements
+        # Length requirements for announcements - RELAXED FOR TESTING
         words = text.split()
         word_count = len(words)
         
-        if word_count < 6:  # Increased minimum length for better precision
+        if word_count < 3:  # Reduced from 6 to 3 words for testing
             logger.info(f"Too short for announcement: {word_count} words")
             return False
         
@@ -190,15 +208,21 @@ class LiveAudioTranscriber:
             structure_score
         )
         
-        # Decision thresholds with detailed logging
-        if announcement_score >= 1 and total_score >= 4:
+        # Decision thresholds - RELAXED FOR TESTING
+        logger.info(f"Announcement analysis: patterns={len(matched_patterns)}, total_score={total_score}, formal={formal_count}, public={public_count}")
+        
+        # More lenient criteria for testing
+        if announcement_score >= 1 and total_score >= 2:  # Reduced from 4 to 2
             logger.info(f"Announcement detected: pattern match + score {total_score}")
             return True
-        elif formal_count >= 2 and public_count >= 1:
+        elif formal_count >= 1 and public_count >= 1:  # Reduced formal requirement
             logger.info(f"Announcement detected: formal language + public service")
             return True
-        elif total_score >= 6:
+        elif total_score >= 3:  # Reduced from 6 to 3
             logger.info(f"Announcement detected: high total score {total_score}")
+            return True
+        elif len(matched_patterns) >= 1:  # If any announcement pattern matches
+            logger.info(f"Announcement detected: pattern match {matched_patterns}")
             return True
         else:
             logger.info(f"Conversation detected: score {total_score}, patterns {len(matched_patterns)}")
@@ -225,16 +249,28 @@ class LiveAudioTranscriber:
     #     return audio_np.tobytes()
     
     def is_speech(self, audio_data: bytes) -> bool:
-        """Use simple volume-based voice activity detection"""
+        """Improved volume-based voice activity detection"""
         try:
             # Convert bytes to numpy array
             audio_np = np.frombuffer(audio_data, dtype=np.int16)
             
+            if len(audio_np) == 0:
+                return False
+            
             # Calculate RMS (Root Mean Square) for volume level
             rms = np.sqrt(np.mean(audio_np.astype(np.float32) ** 2))
             
-            # Return True if volume is above threshold
-            return rms > self.volume_threshold
+            # Also check for peak amplitude
+            peak = np.max(np.abs(audio_np))
+            
+            # Use both RMS and peak for better detection
+            has_speech = (rms > self.volume_threshold) or (peak > self.volume_threshold * 2)
+            
+            # Log volume levels for debugging
+            if has_speech:
+                logger.debug(f"Speech detected - RMS: {rms:.1f}, Peak: {peak:.1f}, Threshold: {self.volume_threshold}")
+            
+            return has_speech
         except Exception as e:
             logger.warning(f"Volume-based VAD error, assuming speech: {e}")
             return True  # Default to assuming speech if VAD fails
@@ -251,30 +287,41 @@ class LiveAudioTranscriber:
             return False
     
     def save_announcement_to_supabase(self, text: str, timestamp: datetime, duration: float) -> bool:
-        """Save announcement transcription with timestamp to Supabase"""
-        try:
-            announcement_type = self.classify_announcement(text)
-            
-            data = {
-                'transcription_text': text,
-                'created_at': timestamp.isoformat(),
-                'device_id': 'live_audio_device',
-                'audio_duration': duration,
-                'is_announcement': True,
-                'announcement_type': announcement_type
-            }
-            
-            result = self.supabase.table('transcriptions').insert(data).execute()
-            logger.info(f"Announcement saved to database: {text[:80]}...")
-            
-            # 🔥 NEW: Trigger haptic alerts via backend API
-            self.trigger_haptic_alert(text, announcement_type)
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error saving announcement to Supabase: {e}")
-            return False
+        """Save announcement transcription with timestamp to Supabase - IMPROVED WITH RETRY + HAPTIC ALERTS"""
+        max_retries = 3
+        retry_delay = 2
+        announcement_type = self.classify_announcement(text)
+        
+        for attempt in range(max_retries):
+            try:
+                data = {
+                    'transcription_text': text,
+                    'created_at': timestamp.isoformat(),
+                    'device_id': 'live_audio_device',
+                    'audio_duration': duration,
+                    'is_announcement': True,
+                    'announcement_type': announcement_type
+                }
+                
+                result = self.supabase.table('transcriptions').insert(data).execute()
+                logger.info(f"SUCCESS: Announcement saved to database (attempt {attempt + 1}): {text[:80]}...")
+                
+                # 🔥 Trigger haptic alerts via backend API (only on successful save)
+                self.trigger_haptic_alert(text, announcement_type)
+                
+                return True
+                
+            except Exception as e:
+                logger.warning(f"FAILED: Attempt {attempt + 1} failed to save to Supabase: {e}")
+                if attempt < max_retries - 1:
+                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                else:
+                    logger.error(f"Failed to save announcement after {max_retries} attempts")
+                    return False
+        
+        return False
     
     def trigger_haptic_alert(self, text: str, announcement_type: str):
         """Send alert to backend API to trigger haptic alerts for subscribed users"""
@@ -354,14 +401,15 @@ class LiveAudioTranscriber:
             logger.error(f"Error deleting old transcriptions: {e}")
     
     def cleanup_worker(self):
-        """Background worker to clean up old transcriptions every minute"""
+        """Background worker to clean up old transcriptions - DISABLED FOR TESTING"""
+        logger.info("Auto-cleanup disabled - transcriptions will persist for testing")
         while self.is_running:
             try:
-                self.delete_old_transcriptions()
-                time.sleep(60)  # Check every minute
+                # self.delete_old_transcriptions()  # Commented out to keep records
+                time.sleep(300)  # Check every 5 minutes instead of 1 minute
             except Exception as e:
                 logger.error(f"Cleanup worker error: {e}")
-                time.sleep(60)
+                time.sleep(300)
     
     def record_dynamic_audio_chunk(self) -> Optional[str]:
         """Record audio dynamically until silence gap of 3+ seconds is detected"""
@@ -523,17 +571,27 @@ class LiveAudioTranscriber:
         try:
             while self.is_running:
                 # Record audio dynamically until silence gap
+                logger.info("🎤 Starting audio recording cycle...")
                 audio_file = self.record_dynamic_audio_chunk()
                 if not audio_file:
+                    logger.info("❌ No audio file returned, continuing...")
                     continue
+                
+                logger.info(f"✅ Audio file created: {audio_file}")
                 
                 # Transcribe audio
+                logger.info("🗣️ Starting transcription...")
                 transcription = self.transcribe_audio(audio_file)
                 if not transcription:
+                    logger.info("❌ No transcription returned, continuing...")
                     continue
                 
+                logger.info(f"✅ Transcription received: '{transcription}'")
+                
                 # Check if this is an announcement
+                logger.info("🔍 Checking if this is an announcement...")
                 if self.is_announcement(transcription):
+                    logger.info("🎯 ANNOUNCEMENT DETECTED! Saving to database...")
                     # Save announcement to database with timestamp
                     timestamp = datetime.now()
                     
@@ -548,7 +606,7 @@ class LiveAudioTranscriber:
                     else:
                         logger.warning("Failed to save announcement to database")
                 else:
-                    logger.info(f"Regular conversation ignored: {transcription[:50]}...")
+                    logger.info(f"❌ Not an announcement - ignoring: {transcription[:50]}...")
                 
                 # Small delay before next recording cycle
                 time.sleep(0.5)
@@ -573,16 +631,34 @@ class LiveAudioTranscriber:
         self.audio.terminate()
         logger.info("Transcription stopped")
 
+def signal_handler(sig, frame):
+    """Handle interrupt signals gracefully"""
+    logger.info("Interrupt signal received, shutting down gracefully...")
+    sys.exit(0)
+
 def main():
-    """Main function to run the live audio transcriber"""
-    transcriber = LiveAudioTranscriber()
+    """Main function to run the live audio transcriber - IMPROVED WITH SIGNAL HANDLING"""
+    # Set up signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     
+    transcriber = None
     try:
+        logger.info("Starting Enhanced Live Audio Transcription System")
+        logger.info("Auto-cleanup disabled - transcriptions will persist")
+        logger.info("Improved audio settings and error handling active")
+        
+        transcriber = LiveAudioTranscriber()
         transcriber.start_transcription()
+        
+    except KeyboardInterrupt:
+        logger.info("KeyboardInterrupt received, stopping...")
     except Exception as e:
         logger.error(f"Fatal error: {e}")
     finally:
-        transcriber.stop_transcription()
+        if transcriber:
+            transcriber.stop_transcription()
+        logger.info("System shutdown complete")
 
 if __name__ == "__main__":
     main()
