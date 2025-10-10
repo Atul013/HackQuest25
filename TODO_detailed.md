@@ -1,6 +1,6 @@
 # Emergency Alert System - 24 Hour MVP Development Plan
 
-## Executive Summary
+## Executive Summaryy
 
 **Project Name:** PublicAlert - Universal Emergency Alert System for Public Spaces
 
