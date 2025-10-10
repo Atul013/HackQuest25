@@ -271,104 +271,41 @@ npm install express firebase-admin web-push cors dotenv body-parser
 
 ---
 
-### **Hours 2-4: Database Schema & Backend API Foundation**
+### **Hours 2-4: Database Schema & Backend API Foundation** ✅ COMPLETED
 
 #### Tasks:
-- [ ] Design Firestore collections
-- [ ] Create Express server with routes
-- [ ] Set up CORS and middleware
-- [ ] Implement Firebase Admin initialization
-- [ ] Create basic API endpoints
+- [x] ✅ Design Supabase PostgreSQL schema (converted from Firestore)
+- [x] ✅ Create Express server with routes
+- [x] ✅ Set up CORS and middleware
+- [x] ✅ Implement Supabase initialization (replaced Firebase)
+- [x] ✅ Create basic API endpoints
 
-#### Firestore Collections:
+#### Database Schema:
+📄 **See `database-schema.md` for complete Supabase PostgreSQL schema and API endpoints**
 
-```javascript
-// venues collection (replaces "stations")
-{
-  id: "CS001",
-  name: "Central Station",
-  type: "railway_station", // railway_station, airport, concert, stadium, mall, hospital, etc.
-  location: {
-    lat: 28.6139,
-    lng: 77.2090
-  },
-  radius: 500, // meters
-  qrCode: "generated_qr_data",
-  active: true,
-  capacity: 50000, // optional: venue capacity
-  openingHours: "24/7", // optional
-  contactInfo: {
-    phone: "+91-xxx-xxx-xxxx",
-    email: "admin@venue.com"
-  }
-}
+Key tables (converted to PostgreSQL):
+- `venues` - Venue information with geospatial data (stations, airports, malls, etc.)
+- `subscriptions` - User device registrations with auto-expiry
+- `alerts` - Emergency alerts with severity levels and broadcasting
+- `temporary_announcements` - Audio-to-text announcements (auto-delete after 10 minutes)
 
-// subscriptions collection
-{
-  id: "auto_generated",
-  deviceToken: "fcm_device_token",
-  endpoint: "push_subscription_endpoint",
-  keys: {
-    p256dh: "...",
-    auth: "..."
-  },
-  venueId: "CS001",
-  venueName: "Central Station",
-  venueType: "railway_station",
-  registeredAt: Timestamp,
-  expiresAt: Timestamp,
-  lastSeen: Timestamp,
-  isInGeofence: true,
-  registrationSource: "qr" // qr, wifi, manual
-}
-
-// alerts collection
-{
-  id: "auto_generated",
-  venueId: "CS001",
-  venueName: "Central Station",
-  venueType: "railway_station",
-  title: "Emergency Alert",
-  message: "Please evacuate platform 3",
-  alertType: "emergency", // emergency, announcement, update, warning
-  severity: "high", // low, medium, high, critical
-  createdAt: Timestamp,
-  expiresAt: Timestamp,
-  active: true,
-  sentCount: 0,
-  acknowledgedCount: 0
-}
-```
-
-#### API Endpoints to Create:
-
-```javascript
-// Venue Management (replaces Station)
-GET    /api/venues                // List all venues
-GET    /api/venues/:id            // Get venue details
-GET    /api/venues/type/:type     // Get venues by type (airports, concerts, etc.)
-POST   /api/venues                // Add new venue (admin)
-PUT    /api/venues/:id            // Update venue (admin)
-
-// Subscription Management
-POST   /api/subscribe             // Register device for alerts
-POST   /api/unsubscribe           // Remove subscription
-PUT    /api/subscription/ping     // Update last seen / geofence status
-
-// Alert Management
-GET    /api/alerts/:venueId       // Get active alerts for venue
-POST   /api/alerts/send           // Send alert to venue (admin)
-GET    /api/alerts/history        // Get alert history (admin)
-GET    /api/alerts/type/:type     // Get alerts by type (emergency, announcement, etc.)
-
-// QR Code
-GET    /api/qr/:venueId           // Generate QR code for venue
-```
+#### Additional Backend Features Implemented:
+- [x] ✅ JWT-based admin authentication with 24-hour expiry
+- [x] ✅ Web Push notifications with VAPID keys
+- [x] ✅ QR code generation for venues
+- [x] ✅ Dual auto-cleanup system (Node-cron + PostgreSQL triggers)
+- [x] ✅ Row Level Security (RLS) policies for data access
+- [x] ✅ Comprehensive error handling and logging
+- [x] ✅ API documentation and testing guide
 
 #### Deliverables:
-- ✅ Backend server running on localhost:3000
-- ✅ Basic CRUD endpoints working
-- ✅ Firebase connection established
+- ✅ Backend server with 12+ endpoints (`server.js`)
+- ✅ Complete API documentation (`README.md`, `API-TESTING.md`)
+- ✅ Supabase PostgreSQL database with triggers and RLS
+- ✅ Push notification system operational
+- ✅ Production-ready backend infrastructure
+
+**🚀 Status: BACKEND COMPLETE - Ready for Frontend Integration**
 
 ---
 
