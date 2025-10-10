@@ -1,6 +1,4 @@
 import whisper
-
-import whisper
 import os
 
 # Load the Whisper  model

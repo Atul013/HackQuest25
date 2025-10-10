@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Haptic Alert System - Test Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+                 // Initialize the service
+            const permissions = await hapticAlertService.initialize();
+            
+            // Update UI
+            window.updatePermissionStatus('vibration', permissions.vibration);
+            window.updatePermissionStatus('notification', permissions.notifications);
+            window.updatePermissionStatus('flash', permissions.flash);
+            
+            log('✅ Initialization complete');
+            log(`📳 Vibration: ${permissions.vibration ? 'ENABLED' : 'DISABLED'}`);
+            log(`🔔 Notifications: ${permissions.notifications ? 'ENABLED' : 'DISABLED'}`);
+            log(`💡 Flash: ${permissions.flash ? 'ENABLED' : 'DISABLED'}`);
+        }
+        
+        // Make functions globally accessible
+        window.init = init;
+        window.testCritical = testCritical;
+        window.testHigh = testHigh;
+        window.testMedium = testMedium;
+        window.testMorse = testMorse;
+        window.stopAlerts = stopAlerts;body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .status-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #ccc;
+        }
+        
+        .status-card.enabled {
+            border-color: #10b981;
+            background: #ecfdf5;
+        }
+        
+        .status-card.disabled {
+            border-color: #ef4444;
+            background: #fef2f2;
+        }
+        
+        .status-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .status-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+        
+        .test-button {
+            padding: 15px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+        
+        .test-button:active {
+            transform: translateY(0);
+        }
+        
+        .test-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-critical { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .btn-high { background: linear-gradient(135deg, #f97316, #ea580c); }
+        .btn-medium { background: linear-gradient(135deg, #eab308, #ca8a04); }
+        .btn-morse { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+        .btn-stop { background: linear-gradient(135deg, #374151, #1f2937); }
+        
+        .info-box {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .info-box h4 {
+            color: #1e40af;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .info-box ul {
+            color: #1e3a8a;
+            font-size: 13px;
+            line-height: 1.6;
+            padding-left: 20px;
+        }
+        
+        .alert-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            min-width: 250px;
+            transform: translateX(300px);
+            transition: transform 0.3s;
+        }
+        
+        .alert-status.active {
+            transform: translateX(0);
+        }
+        
+        .alert-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #ef4444;
+        }
+        
+        .alert-details {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.5;
+        }
+        
+        .log-container {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+        }
+        
+        .log-time {
+            color: #6b7280;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .pulsing {
+            animation: pulse 1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚨 Haptic Alert System Test Suite</h1>
+        <p class="subtitle">Test vibration, screen flash, and morse code alerts</p>
+        
+        <!-- Permissions Status -->
+        <div class="section">
+            <div class="section-title">
+                <span>🔐</span>
+                <span>Permissions Status</span>
+            </div>
+            <div class="status-grid">
+                <div class="status-card" id="vibration-status">
+                    <div class="status-label">Vibration</div>
+                    <div class="status-value">Checking...</div>
+                </div>
+                <div class="status-card" id="notification-status">
+                    <div class="status-label">Notifications</div>
+                    <div class="status-value">Checking...</div>
+                </div>
+                <div class="status-card" id="flash-status">
+                    <div class="status-label">Screen Flash</div>
+                    <div class="status-value">Ready</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Severity Tests -->
+        <div class="section">
+            <div class="section-title">
+                <span>⚡</span>
+                <span>Severity Level Tests</span>
+            </div>
+            <div class="button-grid">
+                <button class="test-button btn-critical" onclick="testCritical()">
+                    🚨 Critical Alert (SOS)
+                </button>
+                <button class="test-button btn-high" onclick="testHigh()">
+                    ⚠️ High Priority Alert
+                </button>
+                <button class="test-button btn-medium" onclick="testMedium()">
+                    📢 Medium Priority Alert
+                </button>
+            </div>
+        </div>
+        
+        <!-- Morse Code Tests -->
+        <div class="section">
+            <div class="section-title">
+                <span>📡</span>
+                <span>Morse Code Messages</span>
+            </div>
+            <div class="button-grid">
+                <button class="test-button btn-morse" onclick="testMorse('SOS')">
+                    SOS (... --- ...)
+                </button>
+                <button class="test-button btn-morse" onclick="testMorse('HELP')">
+                    HELP
+                </button>
+                <button class="test-button btn-morse" onclick="testMorse('FIRE')">
+                    FIRE
+                </button>
+                <button class="test-button btn-morse" onclick="testMorse('DANGER')">
+                    DANGER
+                </button>
+            </div>
+        </div>
+        
+        <!-- Stop Button -->
+        <div class="section">
+            <button class="test-button btn-stop" onclick="stopAlerts()" style="width: 100%;">
+                ⏹️ Stop All Alerts
+            </button>
+        </div>
+        
+        <!-- Info Box -->
+        <div class="info-box">
+            <h4>📱 How It Works</h4>
+            <ul>
+                <li>✓ Vibration patterns encode morse code (SOS: ... --- ...)</li>
+                <li>✓ Screen flashes white in synchronized morse timing</li>
+                <li>✓ Works even in silent mode</li>
+                <li>✓ Critical alerts repeat 3 times for maximum attention</li>
+                <li>✓ Battery efficient - only activates during emergencies</li>
+            </ul>
+        </div>
+        
+        <!-- Console Log -->
+        <div class="section">
+            <div class="section-title">
+                <span>📝</span>
+                <span>Activity Log</span>
+            </div>
+            <div class="log-container" id="log"></div>
+        </div>
+    </div>
+    
+    <!-- Alert Status Indicator -->
+    <div class="alert-status" id="alert-status">
+        <div class="alert-title">⚠️ Alert Active</div>
+        <div class="alert-details" id="alert-details">
+            No active alerts
+        </div>
+    </div>
+    
+    <script type="module">
+        // Import the haptic alert service
+        import hapticAlertService from './services/haptic-alert.service.js';
+        
+        // Initialize
+        let isAlerting = false;
+        
+        async function init() {
+            log('🚀 Initializing Haptic Alert System...');
+            
+            // Initialize the service
+            const permissions = await hapticAlertService.initialize();
+            
+            // Initialize permissions
+            const permissions = await hapticService.initialize();
+            
+            // Update UI
+            updatePermissionStatus('vibration', permissions.vibration);
+            updatePermissionStatus('notification', permissions.notifications);
+            updatePermissionStatus('flash', permissions.flash);
+            
+            log('✅ Initialization complete');
+            log(`📳 Vibration: ${permissions.vibration ? 'ENABLED' : 'DISABLED'}`);
+            log(`🔔 Notifications: ${permissions.notifications ? 'ENABLED' : 'DISABLED'}`);
+            log(`💡 Flash: ${permissions.flash ? 'ENABLED' : 'DISABLED'}`);
+        }
+        
+        window.updatePermissionStatus = function(type, enabled) {
+            const statusCard = document.getElementById(`${type}-status`);
+            const valueEl = statusCard.querySelector('.status-value');
+            
+            if (enabled) {
+                statusCard.classList.add('enabled');
+                statusCard.classList.remove('disabled');
+                valueEl.textContent = '✓ Enabled';
+                valueEl.style.color = '#10b981';
+            } else {
+                statusCard.classList.add('disabled');
+                statusCard.classList.remove('enabled');
+                valueEl.textContent = '✗ Disabled';
+                valueEl.style.color = '#ef4444';
+            }
+        }
+        
+        async function testCritical() {
+            if (isAlerting) return;
+            
+            log('🚨 Testing CRITICAL alert (SOS pattern)...');
+            showAlertStatus('Critical Alert', 'SOS morse code - 3 repetitions');
+            isAlerting = true;
+            
+            await hapticAlertService.triggerCriticalAlert({
+                severity: 'critical',
+                message: 'TEST: Critical Emergency Alert',
+                morseMessage: 'SOS'
+            });
+            
+            setTimeout(() => {
+                isAlerting = false;
+                hideAlertStatus();
+                log('✅ Critical alert test completed');
+            }, 10000);
+        }
+        
+        async function testHigh() {
+            if (isAlerting) return;
+            
+            log('⚠️ Testing HIGH priority alert...');
+            showAlertStatus('High Priority Alert', 'Rapid pulsing pattern');
+            isAlerting = true;
+            
+            await hapticAlertService.triggerCriticalAlert({
+                severity: 'high',
+                message: 'TEST: High Priority Alert',
+                morseMessage: 'ALERT'
+            });
+            
+            setTimeout(() => {
+                isAlerting = false;
+                hideAlertStatus();
+                log('✅ High priority alert test completed');
+            }, 5000);
+        }
+        
+        async function testMedium() {
+            if (isAlerting) return;
+            
+            log('📢 Testing MEDIUM priority alert...');
+            showAlertStatus('Medium Priority Alert', 'Double pulse pattern');
+            isAlerting = true;
+            
+            await hapticAlertService.triggerCriticalAlert({
+                severity: 'medium',
+                message: 'TEST: Medium Priority Alert',
+                morseMessage: 'ALERT'
+            });
+            
+            setTimeout(() => {
+                isAlerting = false;
+                hideAlertStatus();
+                log('✅ Medium priority alert test completed');
+            }, 3000);
+        }
+        
+        async function testMorse(code) {
+            if (isAlerting) return;
+            
+            log(`📡 Testing morse code: ${code}...`);
+            showAlertStatus(`Morse Code: ${code}`, 'Screen flash and vibration');
+            isAlerting = true;
+            
+            await hapticAlertService.flashMorseCode(code);
+            
+            setTimeout(() => {
+                isAlerting = false;
+                hideAlertStatus();
+                log(`✅ Morse code ${code} test completed`);
+            }, 5000);
+        }
+        
+        function stopAlerts() {
+            log('⏹️ Stopping all alerts...');
+            hapticAlertService.stopAlerts();
+            isAlerting = false;
+            hideAlertStatus();
+            log('✅ All alerts stopped');
+        }
+        
+        function showAlertStatus(title, details) {
+            const statusEl = document.getElementById('alert-status');
+            const titleEl = statusEl.querySelector('.alert-title');
+            const detailsEl = document.getElementById('alert-details');
+            
+            titleEl.textContent = `⚠️ ${title}`;
+            detailsEl.textContent = details;
+            statusEl.classList.add('active');
+        }
+        
+        function hideAlertStatus() {
+            const statusEl = document.getElementById('alert-status');
+            statusEl.classList.remove('active');
+        }
+        
+        window.log = function(message) {
+            const logContainer = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', init);
+        
+        // Expose functions for debugging
+        window.hapticAlertService = hapticAlertService;
+    </script>
+</body>
+</html>

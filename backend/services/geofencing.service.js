@@ -25,28 +25,31 @@ class GeofencingService {
    */
   async initializeCache() {
     try {
-      const venues = await db.query(`
-        SELECT id, name, latitude, longitude, geofence_radius, geofence_polygon
-        FROM venues
-        WHERE active = true
-      `);
+      const { data: venues, error } = await db.supabase
+        .from('venues')
+        .select('id, name, latitude, longitude, radius')
+        .eq('active', true);
       
-      venues.rows.forEach(venue => {
-        this.geofenceCache.set(venue.id, {
-          id: venue.id,
-          name: venue.name,
-          center: {
-            lat: venue.latitude,
-            lon: venue.longitude
-          },
-          radius: venue.geofence_radius || 500, // default 500 meters
-          polygon: venue.geofence_polygon ? JSON.parse(venue.geofence_polygon) : null
+      if (error) throw error;
+      
+      if (venues) {
+        venues.forEach(venue => {
+          this.geofenceCache.set(venue.id, {
+            id: venue.id,
+            name: venue.name,
+            center: {
+              lat: venue.latitude,
+              lon: venue.longitude
+            },
+            radius: venue.radius || 500, // default 500 meters
+            polygon: null // TODO: Add polygon support later
+          });
         });
-      });
+      }
       
       console.log(`✅ Initialized ${this.geofenceCache.size} geofences`);
     } catch (error) {
-      console.error('Failed to initialize geofence cache:', error);
+      console.error('Failed to initialize geofence cache:', error.message);
     }
   }
 

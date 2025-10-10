@@ -253,22 +253,73 @@ class LiveAudioTranscriber:
     def save_announcement_to_supabase(self, text: str, timestamp: datetime, duration: float) -> bool:
         """Save announcement transcription with timestamp to Supabase"""
         try:
+            announcement_type = self.classify_announcement(text)
+            
             data = {
                 'transcription_text': text,
                 'created_at': timestamp.isoformat(),
                 'device_id': 'live_audio_device',
                 'audio_duration': duration,
                 'is_announcement': True,
-                'announcement_type': self.classify_announcement(text)
+                'announcement_type': announcement_type
             }
             
             result = self.supabase.table('transcriptions').insert(data).execute()
             logger.info(f"Announcement saved to database: {text[:80]}...")
+            
+            # 🔥 NEW: Trigger haptic alerts via backend API
+            self.trigger_haptic_alert(text, announcement_type)
+            
             return True
             
         except Exception as e:
             logger.error(f"Error saving announcement to Supabase: {e}")
             return False
+    
+    def trigger_haptic_alert(self, text: str, announcement_type: str):
+        """Send alert to backend API to trigger haptic alerts for subscribed users"""
+        try:
+            import requests
+            
+            # Determine severity based on announcement type
+            if announcement_type == 'emergency':
+                severity = 'critical'
+                morse_code = 'SOS'
+            elif announcement_type == 'travel' or any(word in text.lower() for word in ['urgent', 'immediate', 'attention']):
+                severity = 'high'
+                morse_code = 'HELP'
+            else:
+                severity = 'medium'
+                morse_code = 'HELP'
+            
+            # Backend API endpoint
+            backend_url = os.getenv('BACKEND_URL', 'http://localhost:3000')
+            endpoint = f'{backend_url}/api/haptic-alerts/trigger'
+            
+            payload = {
+                'venueId': '1',  # TODO: Get from user's current location/geofence
+                'severity': severity,
+                'message': text[:200],  # Limit message length
+                'morseCode': morse_code
+            }
+            
+            logger.info(f"🚨 Triggering {severity} alert: {morse_code}")
+            
+            # Send to backend (with timeout to not block ML processing)
+            response = requests.post(endpoint, json=payload, timeout=3)
+            
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"✅ Alert triggered successfully: {result}")
+            else:
+                logger.warning(f"⚠️ Alert trigger failed: {response.status_code} - {response.text}")
+                
+        except requests.exceptions.Timeout:
+            logger.warning("⚠️ Backend timeout - alert not sent (backend may not be running)")
+        except requests.exceptions.ConnectionError:
+            logger.warning("⚠️ Cannot connect to backend - alert not sent (is backend running?)")
+        except Exception as e:
+            logger.error(f"❌ Error triggering alert: {e}")
     
     def classify_announcement(self, text: str) -> str:
         """Classify the type of announcement"""
@@ -449,9 +500,10 @@ class LiveAudioTranscriber:
         finally:
             # Clean up temporary file
             try:
-                os.unlink(audio_file)
-            except:
-                pass
+                if os.path.exists(audio_file):
+                    os.unlink(audio_file)
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to cleanup temp file: {cleanup_error}")
     
     def start_transcription(self):
         """Start the continuous announcement detection and transcription process"""

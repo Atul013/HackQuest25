@@ -11,6 +11,7 @@ require('dotenv').config();
 
 // Import routes
 const geofencingRoutes = require('./routes/geofencing.routes');
+const hapticAlertsRoutes = require('./routes/haptic-alerts.routes');
 
 // Import services
 const geofencingService = require('./services/geofencing.service');
@@ -45,6 +46,7 @@ app.get('/health', (req, res) => {
 
 // Mount geofencing routes
 app.use('/api/geofence', geofencingRoutes);
+app.use('/api/haptic-alerts', hapticAlertsRoutes);
 
 // WebSocket connection for real-time alerts
 io.on('connection', (socket) => {

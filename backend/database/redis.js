@@ -29,12 +29,17 @@ client.on('reconnecting', () => {
   console.log('🔄 Redis reconnecting...');
 });
 
-// Initialize connection
+// Initialize connection (optional - gracefully handle failure)
 (async () => {
   try {
-    await client.connect();
+    // Only try to connect if REDIS_URL is set
+    if (process.env.REDIS_URL) {
+      await client.connect();
+    } else {
+      console.log('ℹ️  Redis disabled - no REDIS_URL in .env (caching disabled)');
+    }
   } catch (error) {
-    console.error('Failed to connect to Redis:', error);
+    console.log('ℹ️  Redis unavailable - running without cache:', error.message);
   }
 })();
 

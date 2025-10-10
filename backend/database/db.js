@@ -1,54 +1,38 @@
 /**
- * PostgreSQL Database Connection
+ * Database Connection - Using Supabase Client
  */
 
-const { Pool } = require('pg');
+const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? {
-    rejectUnauthorized: false
-  } : false,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
+);
 
 // Test connection
-pool.on('connect', () => {
-  console.log('✅ Database connected');
-});
-
-pool.on('error', (err) => {
-  console.error('❌ Unexpected database error:', err);
-  process.exit(-1);
-});
-
-// Query helper
-const query = (text, params) => {
-  return pool.query(text, params);
-};
-
-// Transaction helper
-const transaction = async (callback) => {
-  const client = await pool.connect();
-  
+async function testConnection() {
   try {
-    await client.query('BEGIN');
-    const result = await callback(client);
-    await client.query('COMMIT');
-    return result;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
+    const { data, error } = await supabase.from('venues').select('count').limit(1);
+    if (error) throw error;
+    console.log('✅ Connected to Supabase Database');
+  } catch (err) {
+    console.error('❌ Supabase connection error:', err.message);
   }
+}
+
+testConnection();
+
+// Query helper that mimics pg Pool interface
+const query = async (text, params) => {
+  // This is a compatibility layer - convert SQL to Supabase queries
+  console.warn('Direct SQL queries not supported with Supabase client. Use supabase.from() instead.');
+  return { rows: [] };
 };
 
 module.exports = {
   query,
-  transaction,
-  pool
+  supabase,
+  testConnection
 };

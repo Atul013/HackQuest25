@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PublicAlert - Admin Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f3f4f6;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        
+        .form-label.required::after {
+            content: " *";
+            color: #ef4444;
+        }
+        
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        }
+        
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+        }
+        
+        .severity-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        
+        .severity-option {
+            position: relative;
+        }
+        
+        .severity-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+        }
+        
+        .severity-label {
+            display: block;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .severity-option input[type="radio"]:checked + .severity-label {
+            border-color: currentColor;
+            box-shadow: 0 0 0 3px rgba(0,0,0,0.1);
+        }
+        
+        .severity-critical { color: #dc2626; }
+        .severity-critical:hover { background: #fef2f2; }
+        
+        .severity-high { color: #ea580c; }
+        .severity-high:hover { background: #fff7ed; }
+        
+        .severity-medium { color: #ca8a04; }
+        .severity-medium:hover { background: #fefce8; }
+        
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            width: 100%;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        
+        .alert-item {
+            background: #f9fafb;
+            border-left: 4px solid #ef4444;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        
+        .alert-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+        
+        .alert-item-title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 5px;
+        }
+        
+        .alert-item-meta {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .alert-item-message {
+            color: #374151;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .badge-critical { background: #fef2f2; color: #dc2626; }
+        .badge-high { background: #fff7ed; color: #ea580c; }
+        .badge-medium { background: #fefce8; color: #ca8a04; }
+        .badge-active { background: #dcfce7; color: #16a34a; }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #9ca3af;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 20px 25px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            border-left: 4px solid #10b981;
+            min-width: 300px;
+            transform: translateX(400px);
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification-title {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 5px;
+        }
+        
+        .notification-message {
+            color: #6b7280;
+            font-size: 14px;
+        }
+        
+        .venue-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .venue-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .venue-name {
+            font-weight: 500;
+            color: #1f2937;
+        }
+        
+        .venue-type {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .subscriber-count {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .severity-selector {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚨 PublicAlert Admin Dashboard</h1>
+        <p>Emergency Alert Management System</p>
+    </div>
+    
+    <div class="container">
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-venues">4</div>
+                <div class="stat-label">Active Venues</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-subscribers">0</div>
+                <div class="stat-label">Total Subscribers</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-alerts">0</div>
+                <div class="stat-label">Alerts Sent Today</div>
+            </div>
+        </div>
+        
+        <!-- Main Grid -->
+        <div class="grid">
+            <!-- Create Alert Form -->
+            <div class="card">
+                <h2 class="card-title">
+                    <span>📢</span>
+                    <span>Create Emergency Alert</span>
+                </h2>
+                
+                <form id="alert-form">
+                    <!-- Venue Selection -->
+                    <div class="form-group">
+                        <label class="form-label required" for="venue">Select Venue</label>
+                        <select class="form-select" id="venue" required>
+                            <option value="">Choose a venue...</option>
+                            <option value="1">Ernakulam Junction Railway Station</option>
+                            <option value="2">Cochin International Airport</option>
+                            <option value="3">Lulu Mall Kochi</option>
+                            <option value="4">Rajagiri School of Engineering</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Alert Message -->
+                    <div class="form-group">
+                        <label class="form-label required" for="message">Alert Message</label>
+                        <textarea 
+                            class="form-textarea" 
+                            id="message" 
+                            placeholder="Enter your emergency alert message here..."
+                            required
+                        ></textarea>
+                    </div>
+                    
+                    <!-- Severity Level -->
+                    <div class="form-group">
+                        <label class="form-label required">Severity Level</label>
+                        <div class="severity-selector">
+                            <div class="severity-option">
+                                <input type="radio" name="severity" id="critical" value="critical" checked>
+                                <label for="critical" class="severity-label severity-critical">
+                                    🚨 Critical
+                                </label>
+                            </div>
+                            <div class="severity-option">
+                                <input type="radio" name="severity" id="high" value="high">
+                                <label for="high" class="severity-label severity-high">
+                                    ⚠️ High
+                                </label>
+                            </div>
+                            <div class="severity-option">
+                                <input type="radio" name="severity" id="medium" value="medium">
+                                <label for="medium" class="severity-label severity-medium">
+                                    📢 Medium
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Morse Code Pattern -->
+                    <div class="form-group">
+                        <label class="form-label" for="morse">Morse Code Pattern (Optional)</label>
+                        <select class="form-select" id="morse">
+                            <option value="SOS">SOS (... --- ...)</option>
+                            <option value="HELP">HELP</option>
+                            <option value="FIRE">FIRE</option>
+                            <option value="DANGER">DANGER</option>
+                            <option value="ALERT">ALERT</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn btn-primary">
+                        <span>🚨</span>
+                        <span>Send Alert to All Users</span>
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Active Alerts Sidebar -->
+            <div class="card">
+                <h2 class="card-title">
+                    <span>📋</span>
+                    <span>Active Alerts</span>
+                </h2>
+                
+                <div id="active-alerts">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <p>No active alerts</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Venue List -->
+        <div class="card">
+            <h2 class="card-title">
+                <span>🏢</span>
+                <span>Venue Management</span>
+            </h2>
+            
+            <div class="venue-list" id="venue-list">
+                <div class="venue-item">
+                    <div>
+                        <div class="venue-name">Ernakulam Junction Railway Station</div>
+                        <div class="venue-type">Railway Station</div>
+                    </div>
+                    <div class="subscriber-count">0 subscribers</div>
+                </div>
+                
+                <div class="venue-item">
+                    <div>
+                        <div class="venue-name">Cochin International Airport</div>
+                        <div class="venue-type">Airport</div>
+                    </div>
+                    <div class="subscriber-count">0 subscribers</div>
+                </div>
+                
+                <div class="venue-item">
+                    <div>
+                        <div class="venue-name">Lulu Mall Kochi</div>
+                        <div class="venue-type">Shopping Mall</div>
+                    </div>
+                    <div class="subscriber-count">0 subscribers</div>
+                </div>
+                
+                <div class="venue-item">
+                    <div>
+                        <div class="venue-name">Rajagiri School of Engineering</div>
+                        <div class="venue-type">Educational Institution</div>
+                    </div>
+                    <div class="subscriber-count">0 subscribers</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Success Notification -->
+    <div class="notification" id="notification">
+        <div class="notification-title" id="notification-title">Success</div>
+        <div class="notification-message" id="notification-message">Alert sent successfully!</div>
+    </div>
+    
+    <script>
+        // Form submission
+        document.getElementById('alert-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const venueId = document.getElementById('venue').value;
+            const message = document.getElementById('message').value;
+            const severity = document.querySelector('input[name="severity"]:checked').value;
+            const morse = document.getElementById('morse').value;
+            
+            if (!venueId || !message) {
+                showNotification('Error', 'Please fill in all required fields', 'error');
+                return;
+            }
+            
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳</span><span>Sending Alert...</span>';
+            
+            try {
+                // Call the backend API
+                const response = await fetch('http://localhost:3000/api/haptic-alerts/trigger', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        venueId: venueId,
+                        severity: severity,
+                        message: message,
+                        morseCode: morse
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showNotification(
+                        'Alert Sent Successfully!',
+                        `Sent to ${data.triggered || 0} subscribers`,
+                        'success'
+                    );
+                    
+                    // Add to active alerts
+                    addActiveAlert(venueId, message, severity);
+                    
+                    // Update stats
+                    updateStats();
+                    
+                    // Reset form
+                    e.target.reset();
+                } else {
+                    showNotification('Error', data.error || 'Failed to send alert', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error', 'Failed to connect to server. Is it running?', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🚨</span><span>Send Alert to All Users</span>';
+            }
+        });
+        
+        function showNotification(title, message, type = 'success') {
+            const notification = document.getElementById('notification');
+            const titleEl = document.getElementById('notification-title');
+            const messageEl = document.getElementById('notification-message');
+            
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            
+            // Change color based on type
+            notification.style.borderLeftColor = type === 'success' ? '#10b981' : '#ef4444';
+            
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 5000);
+        }
+        
+        function addActiveAlert(venueId, message, severity) {
+            const container = document.getElementById('active-alerts');
+            const venueNames = {
+                '1': 'Ernakulam Junction',
+                '2': 'Cochin Airport',
+                '3': 'Lulu Mall',
+                '4': 'Rajagiri Campus'
+            };
+            
+            // Remove empty state
+            const emptyState = container.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+            
+            const alertItem = document.createElement('div');
+            alertItem.className = 'alert-item';
+            alertItem.innerHTML = `
+                <div class="alert-item-header">
+                    <div>
+                        <div class="alert-item-title">${venueNames[venueId]}</div>
+                        <div class="alert-item-meta">Just now • <span class="badge badge-${severity}">${severity}</span> <span class="badge badge-active">Active</span></div>
+                    </div>
+                </div>
+                <div class="alert-item-message">${message}</div>
+            `;
+            
+            container.insertBefore(alertItem, container.firstChild);
+        }
+        
+        function updateStats() {
+            const alertCount = parseInt(document.getElementById('stat-alerts').textContent);
+            document.getElementById('stat-alerts').textContent = alertCount + 1;
+        }
+        
+        // Load initial data
+        async function loadDashboardData() {
+            try {
+                // TODO: Fetch real data from backend
+                // const response = await fetch('http://localhost:3000/api/admin/stats');
+                // const data = await response.json();
+                // updateDashboard(data);
+                
+                console.log('Admin dashboard loaded');
+            } catch (error) {
+                console.error('Failed to load dashboard data:', error);
+            }
+        }
+        
+        window.addEventListener('load', loadDashboardData);
+    </script>
+</body>
+</html>
