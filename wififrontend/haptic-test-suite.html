@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlertNet Haptic Test Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .test-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: transform 0.2s;
+        }
+
+        .test-card:active {
+            transform: scale(0.98);
+        }
+
+        .test-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .test-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1F2937;
+        }
+
+        .severity-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .badge-critical {
+            background: #FEE2E2;
+            color: #DC2626;
+        }
+
+        .badge-high {
+            background: #FEF3C7;
+            color: #D97706;
+        }
+
+        .badge-medium {
+            background: #DBEAFE;
+            color: #2563EB;
+        }
+
+        .badge-low {
+            background: #D1FAE5;
+            color: #059669;
+        }
+
+        .test-description {
+            color: #6B7280;
+            font-size: 14px;
+            margin-bottom: 16px;
+            line-height: 1.5;
+        }
+
+        .test-button {
+            width: 100%;
+            padding: 14px;
+            background: #3B82F6;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .test-button:hover {
+            background: #2563EB;
+        }
+
+        .test-button:active {
+            transform: scale(0.95);
+        }
+
+        .btn-critical {
+            background: #DC2626;
+        }
+
+        .btn-critical:hover {
+            background: #B91C1C;
+        }
+
+        .btn-high {
+            background: #F59E0B;
+        }
+
+        .btn-high:hover {
+            background: #D97706;
+        }
+
+        .btn-medium {
+            background: #3B82F6;
+        }
+
+        .btn-medium:hover {
+            background: #2563EB;
+        }
+
+        .btn-low {
+            background: #10B981;
+        }
+
+        .btn-low:hover {
+            background: #059669;
+        }
+
+        .feature-list {
+            font-size: 13px;
+            color: #9CA3AF;
+            margin-top: 12px;
+        }
+
+        .feature-list li {
+            margin-bottom: 4px;
+            margin-left: 20px;
+        }
+
+        .info-box {
+            background: #FEF3C7;
+            border: 2px solid #F59E0B;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            color: #92400E;
+        }
+
+        .info-box strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .status-bar {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: #6B7280;
+        }
+
+        .status-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔔 AlertNet Haptic Test</h1>
+            <p>Test all haptic feedback patterns and screen flashes</p>
+        </div>
+
+        <div class="info-box">
+            <strong>📱 Instructions:</strong>
+            Tap any button below to test the haptic pattern and screen flash. 
+            Make sure your device volume/vibration is enabled!
+        </div>
+
+        <div class="status-bar" id="statusBar">
+            <div class="status-icon">✅</div>
+            <div class="status-text">Haptic system ready</div>
+        </div>
+
+        <!-- Critical Alert Test -->
+        <div class="test-card">
+            <div class="test-header">
+                <div class="test-title">🚨 SOS Emergency</div>
+                <div class="severity-badge badge-critical">Critical</div>
+            </div>
+            <div class="test-description">
+                Life-threatening emergency with SOS Morse code pattern.
+                <strong style="display:block; margin-top:8px;">Expected:</strong>
+                Red screen flash + SOS vibration (· · · – – – · · ·)
+            </div>
+            <button class="test-button btn-critical" onclick="testSOS()">
+                Test SOS Alert
+            </button>
+        </div>
+
+        <!-- Fire Alert Test -->
+        <div class="test-card">
+            <div class="test-header">
+                <div class="test-title">🔥 Fire Emergency</div>
+                <div class="severity-badge badge-critical">Critical</div>
+            </div>
+            <div class="test-description">
+                Fire detected with FIRE Morse code pattern.
+                <strong style="display:block; margin-top:8px;">Expected:</strong>
+                Red screen flash + FIRE Morse code vibration
+            </div>
+            <button class="test-button btn-critical" onclick="testFire()">
+                Test Fire Alert
+            </button>
+        </div>
+
+        <!-- High Priority Test -->
+        <div class="test-card">
+            <div class="test-header">
+                <div class="test-title">⚠️ Urgent Warning</div>
+                <div class="severity-badge badge-high">High</div>
+            </div>
+            <div class="test-description">
+                Urgent but non-life-threatening alert.
+                <strong style="display:block; margin-top:8px;">Expected:</strong>
+                Triple rapid pulse (no screen flash)
+            </div>
+            <button class="test-button btn-high" onclick="testHigh()">
+                Test High Priority
+            </button>
+        </div>
+
+        <!-- Medium Priority Test -->
+        <div class="test-card">
+            <div class="test-header">
+                <div class="test-title">📢 General Alert</div>
+                <div class="severity-badge badge-medium">Medium</div>
+            </div>
+            <div class="test-description">
+                Standard announcement or information.
+                <strong style="display:block; margin-top:8px;">Expected:</strong>
+                Double pulse vibration + blue banner
+            </div>
+            <button class="test-button btn-medium" onclick="testMedium()">
+                Test Medium Priority
+            </button>
+        </div>
+
+        <!-- Low Priority Test -->
+        <div class="test-card">
+            <div class="test-header">
+                <div class="test-title">✅ Success Notification</div>
+                <div class="severity-badge badge-low">Low</div>
+            </div>
+            <div class="test-description">
+                Confirmation or success message.
+                <strong style="display:block; margin-top:8px;">Expected:</strong>
+                Single gentle pulse
+            </div>
+            <button class="test-button btn-low" onclick="testLow()">
+                Test Success Feedback
+            </button>
+        </div>
+    </div>
+
+    <!-- Haptic Alert Service -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Copy the HapticAlertService from success.html
+        class HapticAlertService {
+          constructor() {
+            this.permissions = {
+              vibration: 'vibrate' in navigator,
+              flash: true
+            };
+            
+            this.morseTimings = {
+              dot: 200,
+              dash: 600,
+              gapSymbol: 200,
+              gapLetter: 600,
+              gapWord: 1400
+            };
+            
+            this.morseCode = {
+              'SOS': '... --- ...',
+              'ALERT': '.- .-.. . .-. -',
+              'FIRE': '..-. .. .-. .',
+              'EMERGENCY': '. -- . .-. --. . -. -.-. -.--'
+            };
+            
+            this.isFlashing = false;
+          }
+
+          async triggerAlert(alertData) {
+            const { severity = 'medium', type = 'general', morseMessage = 'ALERT', message = '' } = alertData;
+            
+            console.log('🚨 ALERT TRIGGERED:', message || type);
+            
+            // Update status
+            updateStatus('Testing ' + type + '...', '🔊');
+            
+            // Show notification
+            this.showNotificationBanner(message || type, severity);
+            
+            // Always vibrate for feedback
+            if (this.permissions.vibration) {
+              this.vibratePattern(severity);
+            } else {
+              console.warn('Vibration not supported on this device');
+            }
+            
+            // Flash screen for critical/SOS alerts
+            if (severity === 'critical' || type === 'SOS' || type === 'FIRE') {
+              await this.flashScreen(morseMessage);
+            }
+            
+            // Restore status
+            setTimeout(() => updateStatus('Ready for next test', '✅'), 8000);
+          }
+
+          showNotificationBanner(message, severity) {
+            const existing = document.getElementById('alert-banner');
+            if (existing) existing.remove();
+            
+            const banner = document.createElement('div');
+            banner.id = 'alert-banner';
+            banner.style.cssText = `
+              position: fixed;
+              top: 20px;
+              left: 20px;
+              right: 20px;
+              padding: 20px;
+              background: ${severity === 'critical' ? '#DC2626' : severity === 'high' ? '#F59E0B' : severity === 'medium' ? '#3B82F6' : '#10B981'};
+              color: white;
+              border-radius: 12px;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+              z-index: 10000;
+              font-size: 16px;
+              font-weight: bold;
+              text-align: center;
+              animation: slideDown 0.3s ease-out;
+            `;
+            banner.textContent = `${severity === 'critical' ? '🚨' : severity === 'high' ? '⚠️' : '📢'} ${message}`;
+            document.body.appendChild(banner);
+            
+            setTimeout(() => {
+              banner.style.animation = 'slideUp 0.3s ease-out';
+              setTimeout(() => banner.remove(), 300);
+            }, 8000);
+          }
+
+          vibratePattern(severity) {
+            let pattern;
+            
+            switch (severity) {
+              case 'critical':
+                pattern = [200, 100, 200, 100, 200, 300, 600, 100, 600, 100, 600, 300, 200, 100, 200, 100, 200];
+                break;
+              case 'high':
+                pattern = [300, 200, 300, 200, 300];
+                break;
+              case 'medium':
+                pattern = [400, 200, 400];
+                break;
+              case 'low':
+                pattern = [500];
+                break;
+              default:
+                pattern = [300];
+            }
+            
+            try {
+              navigator.vibrate(pattern);
+              console.log('✓ Vibration triggered:', severity);
+            } catch (error) {
+              console.log('Vibration not available');
+            }
+          }
+
+          async flashScreen(message = 'ALERT') {
+            if (this.isFlashing) return;
+            
+            this.isFlashing = true;
+            
+            let overlay = document.getElementById('emergency-flash-overlay');
+            if (!overlay) {
+              overlay = document.createElement('div');
+              overlay.id = 'emergency-flash-overlay';
+              overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: red;
+                z-index: 999999;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.1s ease;
+              `;
+              document.body.appendChild(overlay);
+            }
+            
+            const morsePattern = this.morseCode[message.toUpperCase()] || this.morseCode['ALERT'];
+            await this.executeMorseFlash(morsePattern, overlay);
+          }
+
+          async executeMorseFlash(morsePattern, overlay) {
+            const symbols = morsePattern.split(' ');
+            
+            for (const symbol of symbols) {
+              for (const char of symbol) {
+                const duration = char === '.' ? this.morseTimings.dot : this.morseTimings.dash;
+                
+                overlay.style.opacity = '0.9';
+                await this.sleep(duration);
+                
+                overlay.style.opacity = '0';
+                await this.sleep(this.morseTimings.gapSymbol);
+              }
+              
+              await this.sleep(this.morseTimings.gapLetter);
+            }
+            
+            for (let i = 0; i < 2; i++) {
+              await this.sleep(this.morseTimings.gapWord);
+              
+              for (const symbol of symbols) {
+                for (const char of symbol) {
+                  const duration = char === '.' ? this.morseTimings.dot : this.morseTimings.dash;
+                  overlay.style.opacity = '0.9';
+                  await this.sleep(duration);
+                  overlay.style.opacity = '0';
+                  await this.sleep(this.morseTimings.gapSymbol);
+                }
+                await this.sleep(this.morseTimings.gapLetter);
+              }
+            }
+            
+            this.isFlashing = false;
+          }
+
+          sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+          }
+        }
+
+        const hapticService = new HapticAlertService();
+        
+        // Add animations
+        const style = document.createElement('style');
+        style.textContent = `
+          @keyframes slideDown {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+          }
+          @keyframes slideUp {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(-100%); opacity: 0; }
+          }
+        `;
+        document.head.appendChild(style);
+
+        // Test functions
+        function testSOS() {
+            hapticService.triggerAlert({
+                severity: 'critical',
+                type: 'SOS',
+                morseMessage: 'SOS',
+                message: 'TEST: EMERGENCY SOS - IMMEDIATE DANGER'
+            });
+        }
+
+        function testFire() {
+            hapticService.triggerAlert({
+                severity: 'critical',
+                type: 'FIRE',
+                morseMessage: 'FIRE',
+                message: 'TEST: FIRE DETECTED - EVACUATE NOW'
+            });
+        }
+
+        function testHigh() {
+            hapticService.triggerAlert({
+                severity: 'high',
+                type: 'warning',
+                morseMessage: 'ALERT',
+                message: 'TEST: Severe weather warning in effect'
+            });
+        }
+
+        function testMedium() {
+            hapticService.triggerAlert({
+                severity: 'medium',
+                type: 'general',
+                morseMessage: 'ALERT',
+                message: 'TEST: Event update - Schedule change'
+            });
+        }
+
+        function testLow() {
+            hapticService.triggerAlert({
+                severity: 'low',
+                type: 'success',
+                morseMessage: 'ALERT',
+                message: 'TEST: Successfully connected to AlertNet'
+            });
+        }
+
+        function updateStatus(text, icon) {
+            document.querySelector('.status-icon').textContent = icon;
+            document.querySelector('.status-text').textContent = text;
+        }
+
+        console.log('🧪 Haptic Test Suite Ready');
+        console.log('Vibration supported:', 'vibrate' in navigator);
+    </script>
+</body>
+</html>

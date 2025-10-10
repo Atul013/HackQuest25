@@ -68,9 +68,13 @@ class HapticAlertService {
       this.vibratePattern(severity);
     }
     
-    // Flash screen for critical/SOS alerts
-    if (severity === 'critical' || type === 'SOS') {
-      this.flashScreen(morseMessage);
+    // Flash screen based on alert type
+    if (severity === 'critical' || type === 'SOS' || type === 'FIRE') {
+      // Red Morse code flash for critical alerts
+      this.flashScreen(morseMessage, 'red', true);
+    } else if (type === 'general' || severity === 'medium' || severity === 'high') {
+      // White double pulse for general alerts
+      this.flashScreen('PULSE', 'white', false);
     }
   }
 
@@ -106,7 +110,7 @@ class HapticAlertService {
     }
   }
 
-  flashScreen(message = 'ALERT') {
+  flashScreen(message = 'ALERT', color = 'red', useMorse = true) {
     if (this.isFlashing) return;
     
     this.isFlashing = true;
@@ -122,17 +126,42 @@ class HapticAlertService {
         left: 0;
         right: 0;
         bottom: 0;
-        background-color: red;
+        background-color: ${color};
         z-index: 999999;
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.1s ease;
       `;
       document.body.appendChild(overlay);
+    } else {
+      // Update color for existing overlay
+      overlay.style.backgroundColor = color;
     }
     
-    const morsePattern = this.morseCode[message.toUpperCase()] || this.morseCode['ALERT'];
-    this.executeMorseFlash(morsePattern, overlay);
+    if (useMorse) {
+      // Morse code flash for critical alerts
+      const morsePattern = this.morseCode[message.toUpperCase()] || this.morseCode['ALERT'];
+      this.executeMorseFlash(morsePattern, overlay);
+    } else {
+      // Simple double pulse for general alerts
+      this.executeDoublePulse(overlay);
+    }
+  }
+
+  async executeDoublePulse(overlay) {
+    // First pulse
+    overlay.style.opacity = '0.85';
+    await this.sleep(400);
+    overlay.style.opacity = '0';
+    await this.sleep(300);
+    
+    // Second pulse
+    overlay.style.opacity = '0.85';
+    await this.sleep(400);
+    overlay.style.opacity = '0';
+    
+    this.isFlashing = false;
+    console.log('✓ Double pulse flash completed');
   }
 
   async executeMorseFlash(morsePattern, overlay) {

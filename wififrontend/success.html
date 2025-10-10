@@ -164,7 +164,220 @@ p {
         </p>
     </div>
     
+    <!-- Supabase JS Client for real-time alerts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <script>
+        // ==========================================
+        // HAPTIC ALERT SERVICE
+        // ==========================================
+        class HapticAlertService {
+          constructor() {
+            this.permissions = {
+              vibration: 'vibrate' in navigator,
+              flash: true
+            };
+            
+            this.morseTimings = {
+              dot: 200,
+              dash: 600,
+              gapSymbol: 200,
+              gapLetter: 600,
+              gapWord: 1400
+            };
+            
+            this.morseCode = {
+              'SOS': '... --- ...',
+              'ALERT': '.- .-.. . .-. -',
+              'FIRE': '..-. .. .-. .',
+              'EMERGENCY': '. -- . .-. --. . -. -.-. -.--'
+            };
+            
+            this.isFlashing = false;
+          }
+
+          async triggerAlert(alertData) {
+            const { severity = 'medium', type = 'general', morseMessage = 'ALERT', message = '' } = alertData;
+            
+            console.log('🚨 ALERT RECEIVED:', message || type);
+            
+            // Show notification
+            this.showNotificationBanner(message || type, severity);
+            
+            // Always vibrate for feedback
+            if (this.permissions.vibration) {
+              this.vibratePattern(severity);
+            }
+            
+            // Flash screen for critical/SOS alerts
+            if (severity === 'critical' || type === 'SOS' || type === 'FIRE') {
+              this.flashScreen(morseMessage);
+            }
+          }
+
+          showNotificationBanner(message, severity) {
+            // Remove existing banner
+            const existing = document.getElementById('alert-banner');
+            if (existing) existing.remove();
+            
+            // Create banner
+            const banner = document.createElement('div');
+            banner.id = 'alert-banner';
+            banner.style.cssText = `
+              position: fixed;
+              top: 20px;
+              left: 20px;
+              right: 20px;
+              padding: 20px;
+              background: ${severity === 'critical' ? '#DC2626' : severity === 'high' ? '#F59E0B' : '#3B82F6'};
+              color: white;
+              border-radius: 12px;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+              z-index: 10000;
+              font-size: 16px;
+              font-weight: bold;
+              text-align: center;
+              animation: slideDown 0.3s ease-out;
+            `;
+            banner.textContent = `⚠️ ${message}`;
+            document.body.appendChild(banner);
+            
+            // Auto-remove after 8 seconds
+            setTimeout(() => {
+              banner.style.animation = 'slideUp 0.3s ease-out';
+              setTimeout(() => banner.remove(), 300);
+            }, 8000);
+          }
+
+          vibratePattern(severity) {
+            let pattern;
+            
+            switch (severity) {
+              case 'critical':
+                // SOS pattern
+                pattern = [200, 100, 200, 100, 200, 300, 600, 100, 600, 100, 600, 300, 200, 100, 200, 100, 200];
+                break;
+              case 'high':
+                // Rapid triple pulse
+                pattern = [300, 200, 300, 200, 300];
+                break;
+              case 'medium':
+                // Double pulse
+                pattern = [400, 200, 400];
+                break;
+              case 'low':
+                // Single pulse
+                pattern = [500];
+                break;
+              default:
+                pattern = [300];
+            }
+            
+            try {
+              navigator.vibrate(pattern);
+              console.log('✓ Vibration triggered:', severity);
+            } catch (error) {
+              console.log('Vibration not available');
+            }
+          }
+
+          flashScreen(message = 'ALERT') {
+            if (this.isFlashing) return;
+            
+            this.isFlashing = true;
+            
+            // Create flash overlay
+            let overlay = document.getElementById('emergency-flash-overlay');
+            if (!overlay) {
+              overlay = document.createElement('div');
+              overlay.id = 'emergency-flash-overlay';
+              overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: red;
+                z-index: 999999;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.1s ease;
+              `;
+              document.body.appendChild(overlay);
+            }
+            
+            const morsePattern = this.morseCode[message.toUpperCase()] || this.morseCode['ALERT'];
+            this.executeMorseFlash(morsePattern, overlay);
+          }
+
+          async executeMorseFlash(morsePattern, overlay) {
+            const symbols = morsePattern.split(' ');
+            
+            for (const symbol of symbols) {
+              for (const char of symbol) {
+                const duration = char === '.' ? this.morseTimings.dot : this.morseTimings.dash;
+                
+                // Flash on
+                overlay.style.opacity = '0.9';
+                await this.sleep(duration);
+                
+                // Flash off
+                overlay.style.opacity = '0';
+                await this.sleep(this.morseTimings.gapSymbol);
+              }
+              
+              await this.sleep(this.morseTimings.gapLetter);
+            }
+            
+            // Repeat 2 more times for critical alerts
+            for (let i = 0; i < 2; i++) {
+              await this.sleep(this.morseTimings.gapWord);
+              
+              for (const symbol of symbols) {
+                for (const char of symbol) {
+                  const duration = char === '.' ? this.morseTimings.dot : this.morseTimings.dash;
+                  overlay.style.opacity = '0.9';
+                  await this.sleep(duration);
+                  overlay.style.opacity = '0';
+                  await this.sleep(this.morseTimings.gapSymbol);
+                }
+                await this.sleep(this.morseTimings.gapLetter);
+              }
+            }
+            
+            this.isFlashing = false;
+            console.log('✓ Screen flash completed');
+          }
+
+          sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+          }
+        }
+
+        // Initialize haptic service
+        const hapticService = new HapticAlertService();
+        console.log('✅ Haptic Alert Service initialized');
+        
+        // Make it available globally
+        window.hapticService = hapticService;
+        
+        // Add CSS for animations
+        const style = document.createElement('style');
+        style.textContent = `
+          @keyframes slideDown {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+          }
+          @keyframes slideUp {
+            from { transform: translateY(0); opacity: 1; }
+            to { transform: translateY(-100%); opacity: 0; }
+          }
+        `;
+        document.head.appendChild(style);
+        
+        // ==========================================
+        // USER DATA DISPLAY
+        // ==========================================
         // Display user information
         try {
             var userData = JSON.parse(localStorage.getItem('alertnet_user'));
@@ -214,6 +427,58 @@ p {
         } catch(e) {
             console.log('Error loading user data:', e);
         }
+        
+        // ==========================================
+        // DEMO ALERT AFTER REGISTRATION
+        // ==========================================
+        // Trigger a demo alert 3 seconds after page load
+        setTimeout(function() {
+            console.log('🎭 Triggering demo alert...');
+            hapticService.triggerAlert({
+                severity: 'medium',
+                type: 'general',
+                morseMessage: 'ALERT',
+                message: 'Welcome to AlertNet! You will receive alerts like this.'
+            });
+        }, 3000);
+        
+        // ==========================================
+        // TEST BUTTONS (for development)
+        // ==========================================
+        // Expose test functions to console
+        window.testCriticalAlert = function() {
+            hapticService.triggerAlert({
+                severity: 'critical',
+                type: 'SOS',
+                morseMessage: 'SOS',
+                message: 'TEST: CRITICAL EMERGENCY - SOS'
+            });
+        };
+        
+        window.testFireAlert = function() {
+            hapticService.triggerAlert({
+                severity: 'critical',
+                type: 'FIRE',
+                morseMessage: 'FIRE',
+                message: 'TEST: FIRE DETECTED IN YOUR AREA'
+            });
+        };
+        
+        window.testRegularAlert = function() {
+            hapticService.triggerAlert({
+                severity: 'high',
+                type: 'general',
+                morseMessage: 'ALERT',
+                message: 'TEST: High priority announcement'
+            });
+        };
+        
+        console.log('');
+        console.log('🧪 TEST FUNCTIONS AVAILABLE:');
+        console.log('  testCriticalAlert() - Test SOS alert with red screen flash');
+        console.log('  testFireAlert() - Test FIRE alert with screen flash');
+        console.log('  testRegularAlert() - Test regular alert with haptic feedback');
+        console.log('');
     </script>
 </body>
 </html>
