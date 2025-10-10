@@ -4,10 +4,12 @@
  */
 
 const express = require('express');
-const cors = require('cors');
 const http = require('http');
 const socketIO = require('socket.io');
 require('dotenv').config();
+
+// Import security middleware
+const security = require('./config/security');
 
 // Import routes
 const geofencingRoutes = require('./routes/geofencing.routes');
@@ -27,8 +29,16 @@ const io = socketIO(server, {
   }
 });
 
-// Middleware
-app.use(cors());
+// Security Middleware (PRODUCTION)
+if (process.env.NODE_ENV === 'production') {
+  app.use(security.helmet);
+  app.use(security.cors);
+} else {
+  // Development: Allow all origins
+  app.use(require('cors')());
+}
+
+// Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
