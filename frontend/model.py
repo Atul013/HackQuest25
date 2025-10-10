@@ -6,7 +6,7 @@ import time
 import os
 import re
 import numpy as np
-import webrtcvad
+# import webrtcvad  # Temporarily disabled due to Python 3.13 compatibility
 from datetime import datetime, timedelta
 from supabase import create_client, Client
 import tempfile
@@ -28,6 +28,10 @@ logger = logging.getLogger(__name__)
 
 class LiveAudioTranscriber:
     def __init__(self):
+        # Load environment variables
+        from dotenv import load_dotenv
+        load_dotenv()
+        
         # Supabase configuration
         self.supabase_url = os.getenv('SUPABASE_URL', 'your_supabase_url_here')
         self.supabase_key = os.getenv('SUPABASE_ANON_KEY', 'your_supabase_anon_key_here')
@@ -39,12 +43,13 @@ class LiveAudioTranscriber:
         self.channels = 1  # Mono audio
         self.rate = 16000  # Sample rate (16kHz is good for Whisper)
         
-        # Voice Activity Detection settings
-        self.vad = webrtcvad.Vad(2)  # Aggressiveness level 0-3 (2 is balanced)
+        # Voice Activity Detection settings (simplified approach)
+        # self.vad = webrtcvad.Vad(2)  # Temporarily disabled due to Python 3.13 compatibility
         self.frame_duration = 30  # VAD frame duration in ms (10, 20, or 30)
         self.silence_threshold = 3.0  # 3 seconds of silence to end recording
         self.min_speech_duration = 2.0  # Minimum 2 seconds of speech to process
         self.max_recording_duration = 30.0  # Maximum 30 seconds per recording
+        self.volume_threshold = 500  # Simple volume-based voice activity detection
         
         # Audio buffer for VAD
         self.audio_buffer = deque()
@@ -199,36 +204,39 @@ class LiveAudioTranscriber:
             logger.info(f"Conversation detected: score {total_score}, patterns {len(matched_patterns)}")
             return False
     
-    def convert_to_vad_format(self, audio_data: bytes) -> bytes:
-        """Convert audio data to format suitable for VAD (16-bit PCM, specific sample rates)"""
-        # WebRTC VAD requires specific sample rates: 8000, 16000, 32000, or 48000 Hz
-        # Our rate is 16000 Hz which is supported
-        
-        # Convert bytes to numpy array
-        audio_np = np.frombuffer(audio_data, dtype=np.int16)
-        
-        # Ensure the audio is in the right format
-        frame_length = int(self.rate * self.frame_duration / 1000)  # Frame length in samples
-        
-        # Pad or trim to exact frame length if necessary
-        if len(audio_np) != frame_length:
-            if len(audio_np) < frame_length:
-                audio_np = np.pad(audio_np, (0, frame_length - len(audio_np)))
-            else:
-                audio_np = audio_np[:frame_length]
-        
-        return audio_np.tobytes()
+    # def convert_to_vad_format(self, audio_data: bytes) -> bytes:
+    #     """Convert audio data to format suitable for VAD (16-bit PCM, specific sample rates)"""
+    #     # WebRTC VAD requires specific sample rates: 8000, 16000, 32000, or 48000 Hz
+    #     # Our rate is 16000 Hz which is supported
+    #     
+    #     # Convert bytes to numpy array
+    #     audio_np = np.frombuffer(audio_data, dtype=np.int16)
+    #     
+    #     # Ensure the audio is in the right format
+    #     frame_length = int(self.rate * self.frame_duration / 1000)  # Frame length in samples
+    #     
+    #     # Pad or trim to exact frame length if necessary
+    #     if len(audio_np) != frame_length:
+    #         if len(audio_np) < frame_length:
+    #             audio_np = np.pad(audio_np, (0, frame_length - len(audio_np)))
+    #         else:
+    #             audio_np = audio_np[:frame_length]
+    #     
+    #     return audio_np.tobytes()
     
     def is_speech(self, audio_data: bytes) -> bool:
-        """Use VAD to detect if audio contains speech"""
+        """Use simple volume-based voice activity detection"""
         try:
-            # Convert to VAD format
-            vad_audio = self.convert_to_vad_format(audio_data)
+            # Convert bytes to numpy array
+            audio_np = np.frombuffer(audio_data, dtype=np.int16)
             
-            # Use VAD to detect speech
-            return self.vad.is_speech(vad_audio, self.rate)
+            # Calculate RMS (Root Mean Square) for volume level
+            rms = np.sqrt(np.mean(audio_np.astype(np.float32) ** 2))
+            
+            # Return True if volume is above threshold
+            return rms > self.volume_threshold
         except Exception as e:
-            logger.warning(f"VAD error, assuming speech: {e}")
+            logger.warning(f"Volume-based VAD error, assuming speech: {e}")
             return True  # Default to assuming speech if VAD fails
         
     def setup_database_table(self):
