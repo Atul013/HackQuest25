@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Transcription Alert Test - LIVE</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: #f0f0f0;
+        }
+        
+        .alert-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #4F46E5;
+            color: white;
+            padding: 12px 24px;
+            text-align: center;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1000;
+            transform: translateY(-100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .alert-header.visible {
+            transform: translateY(0);
+        }
+        
+        .alert-header.pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .test-container {
+            margin-top: 80px;
+            max-width: 800px;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        
+        button {
+            background: #4F46E5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover { background: #3730A3; }
+        
+        #logOutput {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Alert Header -->
+    <div id="alertHeader" class="alert-header">
+        🚨 Welcome to AlertNet! You will receive alerts like this.
+    </div>
+
+    <div class="test-container">
+        <h1>🧪 Live Transcription Alert Test</h1>
+        <p>This page tests the EXACT same Supabase connection used in the WiFi portal success page.</p>
+        
+        <div id="connectionStatus" class="status info">🔄 Testing connection...</div>
+        
+        <div style="margin: 20px 0;">
+            <button onclick="testConnection()">🔌 Test Connection</button>
+            <button onclick="fetchTranscriptions()">📥 Fetch Transcriptions</button>
+            <button onclick="insertTestData()">➕ Insert Test Data</button>
+            <button onclick="startPolling()">▶️ Start Polling</button>
+            <button onclick="stopPolling()">⏹️ Stop Polling</button>
+            <button onclick="clearLog()">🗑️ Clear Log</button>
+        </div>
+        
+        <div id="logOutput"></div>
+    </div>
+
+    <script>
+        // EXACT same configuration as success.html
+        const SUPABASE_URL = 'https://akblmbpxxotmebzghczj.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYmxtYnB4eG90bWViemdoY3pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwNzQxMDUsImV4cCI6MjA3NTY1MDEwNX0.6d8XmmmoSh0hY8OWoymIEX7UnQU6qpgyQsyIe7_KHtI';
+        
+        let supabase = null;
+        let pollingInterval = null;
+        let lastTranscriptionId = null;
+        
+        function log(message) {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            logOutput.innerHTML += `[${timestamp}] ${message}<br>`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+            console.log(message);
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('connectionStatus');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+        
+        function showAlert(message) {
+            const alertHeader = document.getElementById('alertHeader');
+            alertHeader.textContent = `🔊 ${message}`;
+            alertHeader.classList.add('visible', 'pulse');
+            
+            setTimeout(() => {
+                alertHeader.classList.remove('pulse');
+            }, 3000);
+            
+            setTimeout(() => {
+                alertHeader.textContent = '🚨 Welcome to AlertNet! You will receive alerts like this.';
+                alertHeader.classList.remove('visible');
+            }, 8000);
+        }
+        
+        async function initializeSupabase() {
+            try {
+                if (typeof window.supabase_js !== 'undefined') {
+                    supabase = window.supabase_js.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    log('✅ Supabase client created successfully');
+                    updateStatus('✅ Supabase client ready', 'success');
+                    return true;
+                } else {
+                    throw new Error('Supabase JS library not loaded');
+                }
+            } catch (error) {
+                log('❌ Supabase initialization failed: ' + error.message);
+                updateStatus('❌ Supabase initialization failed', 'error');
+                return false;
+            }
+        }
+        
+        async function testConnection() {
+            log('🔌 Testing Supabase connection...');
+            
+            if (!supabase) {
+                const initialized = await initializeSupabase();
+                if (!initialized) return;
+            }
+            
+            try {
+                const { data, error } = await supabase.from('transcriptions').select('count').limit(1);
+                if (error) {
+                    log('❌ Connection test failed: ' + error.message);
+                    updateStatus('❌ Connection failed', 'error');
+                } else {
+                    log('✅ Connection successful!');
+                    updateStatus('✅ Connected to Supabase', 'success');
+                }
+            } catch (err) {
+                log('❌ Connection error: ' + err.message);
+                updateStatus('❌ Connection error', 'error');
+            }
+        }
+        
+        async function fetchTranscriptions() {
+            log('📥 Fetching transcriptions...');
+            
+            if (!supabase) {
+                await initializeSupabase();
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('transcriptions')
+                    .select('*')
+                    .eq('is_announcement', true)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                if (error) {
+                    log('❌ Fetch failed: ' + error.message);
+                } else {
+                    log(`✅ Found ${data.length} transcriptions:`);
+                    data.forEach((item, index) => {
+                        log(`${index + 1}. [ID:${item.id}] ${item.transcription_text} (${new Date(item.created_at).toLocaleString()})`);
+                    });
+                    
+                    if (data.length > 0) {
+                        showAlert(data[0].transcription_text);
+                    }
+                }
+            } catch (err) {
+                log('❌ Fetch error: ' + err.message);
+            }
+        }
+        
+        async function insertTestData() {
+            log('➕ Inserting test data...');
+            
+            if (!supabase) {
+                await initializeSupabase();
+            }
+            
+            try {
+                const testData = {
+                    transcription_text: `LIVE TEST: Alert from deployed site at ${new Date().toLocaleTimeString()}`,
+                    is_announcement: true,
+                    device_id: "live_test_device",
+                    created_at: new Date().toISOString()
+                };
+                
+                const { data, error } = await supabase
+                    .from('transcriptions')
+                    .insert(testData)
+                    .select();
+                
+                if (error) {
+                    log('❌ Insert failed: ' + error.message);
+                } else {
+                    log('✅ Test data inserted successfully: ID ' + data[0].id);
+                    showAlert(testData.transcription_text);
+                }
+            } catch (err) {
+                log('❌ Insert error: ' + err.message);
+            }
+        }
+        
+        async function pollForTranscriptions() {
+            if (!supabase) return;
+            
+            try {
+                const { data, error } = await supabase
+                    .from('transcriptions')
+                    .select('*')
+                    .eq('is_announcement', true)
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+                
+                if (error) {
+                    log('❌ Polling error: ' + error.message);
+                    return;
+                }
+                
+                if (data.length > 0) {
+                    const latest = data[0];
+                    if (!lastTranscriptionId || latest.id !== lastTranscriptionId) {
+                        lastTranscriptionId = latest.id;
+                        log(`🔊 NEW TRANSCRIPTION: ${latest.transcription_text}`);
+                        showAlert(latest.transcription_text);
+                    }
+                }
+            } catch (err) {
+                log('❌ Polling error: ' + err.message);
+            }
+        }
+        
+        function startPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+            
+            log('▶️ Starting transcription polling (every 2 seconds)...');
+            pollingInterval = setInterval(pollForTranscriptions, 2000);
+        }
+        
+        function stopPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+                log('⏹️ Polling stopped');
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('logOutput').innerHTML = '';
+        }
+        
+        // Auto-initialize when page loads
+        document.addEventListener('DOMContentLoaded', async () => {
+            log('🚀 Live Transcription Test Page Loaded');
+            await initializeSupabase();
+            await testConnection();
+            
+            // Auto-start polling after 2 seconds
+            setTimeout(startPolling, 2000);
+        });
+    </script>
+</body>
+</html>

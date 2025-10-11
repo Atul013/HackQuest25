@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Supabase Connection Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Supabase Connection Test</h1>
+    
+    <div id="status"></div>
+    
+    <button onclick="testConnection()">Test Connection</button>
+    <button onclick="testTranscriptionsTable()">Test Transcriptions Table</button>
+    <button onclick="testWifiSubscriptions()">Test WiFi Subscriptions</button>
+    
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://akblmbpxxotmebzghczj.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYmxtYnB4eG90bWViemdoY3pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwNzQxMDUsImV4cCI6MjA3NTY1MDEwNX0.6d8XmmmoSh0hY8OWoymIEX7UnQU6qpgyQsyIe7_KHtI';
+        
+        let supabase = null;
+        
+        function addStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            const newStatus = document.createElement('div');
+            newStatus.className = `status ${type}`;
+            newStatus.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            statusDiv.appendChild(newStatus);
+            console.log(message);
+        }
+        
+        function initializeSupabase() {
+            try {
+                supabase = supabase_js.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                addStatus('✅ Supabase client initialized successfully', 'success');
+                return true;
+            } catch (error) {
+                addStatus(`❌ Supabase initialization failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function testConnection() {
+            addStatus('🔄 Testing Supabase connection...', 'info');
+            
+            if (!supabase) {
+                if (!initializeSupabase()) {
+                    return;
+                }
+            }
+            
+            try {
+                // Simple test query
+                const { data, error } = await supabase
+                    .from('transcriptions')
+                    .select('count', { count: 'exact', head: true });
+                
+                if (error) {
+                    addStatus(`❌ Connection test failed: ${error.message}`, 'error');
+                } else {
+                    addStatus('✅ Connection successful!', 'success');
+                }
+            } catch (error) {
+                addStatus(`❌ Connection error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testTranscriptionsTable() {
+            addStatus('🔄 Testing transcriptions table access...', 'info');
+            
+            if (!supabase) {
+                if (!initializeSupabase()) {
+                    return;
+                }
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('transcriptions')
+                    .select('*')
+                    .limit(1);
+                
+                if (error) {
+                    addStatus(`❌ Transcriptions table error: ${error.message}`, 'error');
+                } else {
+                    addStatus(`✅ Transcriptions table accessible. Found ${data.length} records.`, 'success');
+                }
+            } catch (error) {
+                addStatus(`❌ Transcriptions table error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testWifiSubscriptions() {
+            addStatus('🔄 Testing wifi_subscriptions table...', 'info');
+            
+            if (!supabase) {
+                if (!initializeSupabase()) {
+                    return;
+                }
+            }
+            
+            try {
+                const { data, error } = await supabase
+                    .from('wifi_subscriptions')
+                    .select('*')
+                    .limit(1);
+                
+                if (error) {
+                    addStatus(`❌ WiFi subscriptions table error: ${error.message}`, 'error');
+                } else {
+                    addStatus(`✅ WiFi subscriptions table accessible. Found ${data.length} records.`, 'success');
+                }
+            } catch (error) {
+                addStatus(`❌ WiFi subscriptions error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-initialize when page loads
+        window.addEventListener('load', function() {
+            addStatus('🚀 Page loaded, initializing...', 'info');
+            setTimeout(() => {
+                initializeSupabase();
+            }, 100);
+        });
+    </script>
+</body>
+</html>

@@ -14,20 +14,58 @@ Compatible with MyPublicWiFi Backend
 <meta name="HandheldFriendly" content="True" />
 <meta name="MobileOptimized" content="320" />
 <title>HackQuest25 - WiFi Access</title>
-<script type="text/javascript" src="jquery-1.4.3.min.js"></script>
-<link rel="stylesheet" type="text/css" href="style.css" />
+<script src="https://code.jquery.com/jquery-1.4.3.min.js"></script>
+<link rel="stylesheet" type="text/css" href="style-modern.css" />
 <!-- Supabase JS Client -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script type="text/javascript">
 /*<![CDATA[*/
 
-// Initialize Supabase Client
+// Supabase Configuration
 const SUPABASE_URL = 'https://akblmbpxxotmebzghczj.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYmxtYnB4eG90bWViemdoY3pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwNzQxMDUsImV4cCI6MjA3NTY1MDEwNX0.6d8XmmmoSh0hY8OWoymIEX7UnQU6qpgyQsyIe7_KHtI';
 
-const supabase = supabase_js.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Global Supabase client
+let supabase = null;
+let supabaseInitialized = false;
 
-console.log('✅ Supabase client initialized');
+// Initialize Supabase with retry mechanism
+function initializeSupabase() {
+  try {
+    if (typeof window.supabase_js !== 'undefined') {
+      supabase = window.supabase_js.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      supabaseInitialized = true;
+      console.log('✅ Supabase client initialized successfully');
+      return true;
+    } else {
+      console.log('⏳ Supabase library not yet loaded, retrying...');
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Supabase initialization error:', error);
+    return false;
+  }
+}
+
+// Wait for page to load and initialize Supabase
+document.addEventListener('DOMContentLoaded', function() {
+  // Try to initialize immediately
+  if (!initializeSupabase()) {
+    // If failed, retry every 500ms for up to 5 seconds
+    let retryCount = 0;
+    const maxRetries = 10;
+    
+    const retryInterval = setInterval(() => {
+      retryCount++;
+      if (initializeSupabase() || retryCount >= maxRetries) {
+        clearInterval(retryInterval);
+        if (!supabaseInitialized) {
+          console.error('❌ Failed to initialize Supabase after', maxRetries, 'attempts');
+        }
+      }
+    }, 500);
+  }
+});
 
 // ==========================================
 // HAPTIC ALERT SERVICE
@@ -235,6 +273,232 @@ console.log('✅ Haptic Alert Service initialized');
 window.hapticService = hapticService;
 
 // ==========================================
+// TRANSCRIPTION ALERT SYSTEM
+// ==========================================
+class TranscriptionAlertSystem {
+  constructor() {
+    this.isPolling = false;
+    this.pollInterval = null;
+    this.lastTranscriptionId = null;
+    this.userRegistered = false;
+  }
+
+  startPolling() {
+    if (this.isPolling) return;
+    
+    this.isPolling = true;
+    console.log('🎧 Starting transcription polling...');
+    
+    this.pollInterval = setInterval(() => {
+      this.checkForNewTranscriptions();
+    }, 2000); // Check every 2 seconds
+  }
+
+  stopPolling() {
+    if (!this.isPolling) return;
+    
+    this.isPolling = false;
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+      this.pollInterval = null;
+    }
+    console.log('🔇 Stopped transcription polling');
+  }
+
+  async checkForNewTranscriptions() {
+    try {
+      // Check if Supabase is initialized
+      if (!supabaseInitialized || !supabase) {
+        console.log('⏳ Supabase not yet initialized, waiting...');
+        return;
+      }
+
+      // Get latest transcriptions from Supabase
+      const { data, error } = await supabase
+        .from('transcriptions')
+        .select('*')
+        .eq('is_announcement', true)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error) {
+        console.error('Error fetching transcriptions:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        // Check for new transcriptions
+        const latestTranscription = data[0];
+        
+        if (this.lastTranscriptionId !== latestTranscription.id) {
+          this.lastTranscriptionId = latestTranscription.id;
+          
+          // Only show alert if transcription is recent (within last 30 seconds)
+          const transcriptionTime = new Date(latestTranscription.created_at);
+          const now = new Date();
+          const timeDiff = (now - transcriptionTime) / 1000; // seconds
+          
+          if (timeDiff <= 30 && latestTranscription.transcription_text) {
+            this.showTranscriptionAlert(latestTranscription);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking transcriptions:', error);
+    }
+  }
+
+  showTranscriptionAlert(transcription) {
+    const severity = this.getAlertSeverity(transcription);
+    const alertType = this.getAlertType(transcription);
+    
+    console.log('🚨 New transcription alert:', transcription.transcription_text);
+    
+    // Trigger haptic feedback
+    hapticService.triggerAlert({
+      severity: severity,
+      type: alertType,
+      morseMessage: severity === 'critical' ? 'SOS' : 'ALERT'
+    });
+    
+    // Show popup alert
+    this.showPopupAlert({
+      title: this.getAlertTitle(transcription),
+      message: transcription.transcription_text,
+      type: alertType,
+      severity: severity,
+      timestamp: new Date(transcription.created_at).toLocaleTimeString()
+    });
+  }
+
+  getAlertSeverity(transcription) {
+    const text = transcription.transcription_text.toLowerCase();
+    
+    // Critical keywords
+    if (text.includes('emergency') || text.includes('fire') || text.includes('evacuat') || 
+        text.includes('danger') || text.includes('help') || text.includes('urgent')) {
+      return 'critical';
+    }
+    
+    // High priority keywords
+    if (text.includes('important') || text.includes('attention') || text.includes('alert') ||
+        text.includes('announcement') || text.includes('notice')) {
+      return 'high';
+    }
+    
+    return 'medium';
+  }
+
+  getAlertType(transcription) {
+    const text = transcription.transcription_text.toLowerCase();
+    
+    if (text.includes('fire') || text.includes('evacuat') || text.includes('emergency')) {
+      return 'FIRE';
+    }
+    
+    if (text.includes('help') || text.includes('danger') || text.includes('urgent')) {
+      return 'SOS';
+    }
+    
+    return 'general';
+  }
+
+  getAlertTitle(transcription) {
+    const severity = this.getAlertSeverity(transcription);
+    
+    switch (severity) {
+      case 'critical':
+        return '🚨 EMERGENCY ALERT';
+      case 'high':
+        return '⚠️ IMPORTANT ANNOUNCEMENT';
+      default:
+        return '📢 Live Announcement';
+    }
+  }
+
+  showPopupAlert(alertData) {
+    // Create or get alert container
+    let alertContainer = document.getElementById('transcription-alerts');
+    if (!alertContainer) {
+      alertContainer = document.createElement('div');
+      alertContainer.id = 'transcription-alerts';
+      alertContainer.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000000;
+        max-width: 400px;
+        pointer-events: none;
+      `;
+      document.body.appendChild(alertContainer);
+    }
+
+    // Create alert element
+    const alertElement = document.createElement('div');
+    alertElement.className = 'transcription-alert';
+    alertElement.style.cssText = `
+      background: ${alertData.severity === 'critical' ? '#dc2626' : alertData.severity === 'high' ? '#d97706' : '#059669'};
+      color: white;
+      padding: 16px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      border-left: 4px solid rgba(255,255,255,0.8);
+      pointer-events: auto;
+      cursor: pointer;
+      transform: translateX(420px);
+      transition: transform 0.3s ease;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+
+    alertElement.innerHTML = `
+      <div style="font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+        <span>${alertData.title}</span>
+        <span style="font-size: 12px; opacity: 0.9;">${alertData.timestamp}</span>
+      </div>
+      <div style="font-size: 14px; line-height: 1.4;">
+        ${alertData.message}
+      </div>
+      <div style="font-size: 11px; margin-top: 8px; opacity: 0.8;">
+        Click to dismiss • Auto-dismiss in 10s
+      </div>
+    `;
+
+    // Add to container
+    alertContainer.appendChild(alertElement);
+
+    // Animate in
+    setTimeout(() => {
+      alertElement.style.transform = 'translateX(0)';
+    }, 100);
+
+    // Auto dismiss after 10 seconds
+    const dismissTimer = setTimeout(() => {
+      this.dismissAlert(alertElement);
+    }, 10000);
+
+    // Click to dismiss
+    alertElement.addEventListener('click', () => {
+      clearTimeout(dismissTimer);
+      this.dismissAlert(alertElement);
+    });
+  }
+
+  dismissAlert(alertElement) {
+    alertElement.style.transform = 'translateX(420px)';
+    setTimeout(() => {
+      if (alertElement.parentNode) {
+        alertElement.parentNode.removeChild(alertElement);
+      }
+    }, 300);
+  }
+}
+
+// Initialize transcription alert system
+const transcriptionAlerts = new TranscriptionAlertSystem();
+window.transcriptionAlerts = transcriptionAlerts;
+
+// ==========================================
 // DIALOG FUNCTIONS
 // ==========================================
 function HideDialog(DialogId) {
@@ -439,6 +703,11 @@ function sendRegistrationToBackend(userData) {
                 morseMessage: 'ALERT'
             });
             
+            // Start transcription alerts
+            transcriptionAlerts.userRegistered = true;
+            transcriptionAlerts.startPolling();
+            console.log('✅ Transcription alerts enabled for user');
+            
             // Show success and redirect
             ShowInfoMessage("LoginSuccessful");
             setTimeout(function() {
@@ -468,6 +737,22 @@ async function storeInSupabase(userData) {
     console.log('📤 Storing to Supabase...', userData);
     
     try {
+        // Check if Supabase is initialized
+        if (!supabaseInitialized || !supabase) {
+            console.log('⏳ Waiting for Supabase initialization...');
+            
+            // Wait up to 5 seconds for Supabase to initialize
+            let attempts = 0;
+            while ((!supabaseInitialized || !supabase) && attempts < 10) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                attempts++;
+            }
+            
+            if (!supabaseInitialized || !supabase) {
+                throw new Error('Supabase failed to initialize');
+            }
+        }
+
         // Prepare data for Supabase
         const subscriptionData = {
             phone: userData.phone,
@@ -553,6 +838,79 @@ async function sendToBackendAPI(userData) {
         return { success: false, error: error.message, source: 'backend_optional' };
     }
 }
+
+// ==========================================
+// TEST FUNCTIONS
+// ==========================================
+async function testSupabaseConnection() {
+    console.log('🧪 Testing Supabase connection...');
+    
+    if (!supabaseInitialized || !supabase) {
+        console.error('❌ Supabase not initialized');
+        return false;
+    }
+    
+    try {
+        // Test basic connection by fetching a small amount of data
+        const { data, error } = await supabase
+            .from('transcriptions')
+            .select('id')
+            .limit(1);
+        
+        if (error) {
+            console.error('❌ Supabase connection test failed:', error);
+            return false;
+        }
+        
+        console.log('✅ Supabase connection test successful');
+        return true;
+    } catch (error) {
+        console.error('❌ Supabase connection test error:', error);
+        return false;
+    }
+}
+
+function testTranscriptionAlert() {
+    console.log('🧪 Testing transcription alert system...');
+    
+    // Simulate a transcription alert
+    const testTranscription = {
+        id: Date.now(),
+        transcription_text: "Attention all visitors: This is a test emergency announcement. Please remain calm and follow evacuation procedures.",
+        is_announcement: true,
+        created_at: new Date().toISOString()
+    };
+    
+    transcriptionAlerts.showTranscriptionAlert(testTranscription);
+}
+
+function testCriticalAlert() {
+    const criticalAlert = {
+        id: Date.now(),
+        transcription_text: "EMERGENCY: Fire detected in building. Please evacuate immediately using nearest exit.",
+        is_announcement: true,
+        created_at: new Date().toISOString()
+    };
+    
+    transcriptionAlerts.showTranscriptionAlert(criticalAlert);
+}
+
+function testRegularAlert() {
+    const regularAlert = {
+        id: Date.now(),
+        transcription_text: "Announcement: The conference will begin in 10 minutes in the main hall.",
+        is_announcement: true,
+        created_at: new Date().toISOString()
+    };
+    
+    transcriptionAlerts.showTranscriptionAlert(regularAlert);
+}
+
+// Make test functions available globally
+window.testSupabaseConnection = testSupabaseConnection;
+window.testTranscriptionAlert = testTranscriptionAlert;
+window.testCriticalAlert = testCriticalAlert;
+window.testRegularAlert = testRegularAlert;
 
 $(document).ready(function() {
     // Initialization

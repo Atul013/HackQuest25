@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HackQuest25 - Transcription Alert Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-button {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .test-button:hover {
+            background: #4338ca;
+        }
+        .critical { background: #dc2626; }
+        .high { background: #d97706; }
+        .medium { background: #059669; }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .success { background: #d1fae5; color: #065f46; }
+        .error { background: #fee2e2; color: #991b1b; }
+        .info { background: #dbeafe; color: #1e40af; }
+        .test-log {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+    </style>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 HackQuest25 Transcription Alert Test Suite</h1>
+        <p>This test verifies the integration between the WiFi login system and live transcription alerts.</p>
+        
+        <div id="connection-status" class="status info">
+            🔄 Initializing Supabase connection...
+        </div>
+        
+        <h3>📋 Test Cases</h3>
+        
+        <h4>1. Database Connection Tests</h4>
+        <button class="test-button" onclick="testSupabaseConnection()">Test Supabase Connection</button>
+        <button class="test-button" onclick="testTranscriptionsTable()">Test Transcriptions Table</button>
+        
+        <h4>2. Alert System Tests</h4>
+        <button class="test-button critical" onclick="testCriticalAlert()">🚨 Test Critical Alert</button>
+        <button class="test-button high" onclick="testHighAlert()">⚠️ Test High Priority Alert</button>
+        <button class="test-button medium" onclick="testMediumAlert()">📢 Test Medium Alert</button>
+        
+        <h4>3. Integration Tests</h4>
+        <button class="test-button" onclick="testPollingSystem()">Test Polling System</button>
+        <button class="test-button" onclick="testInsertAndAlert()">Insert Test Record & Alert</button>
+        <button class="test-button" onclick="clearTestData()">🗑️ Clear Test Data</button>
+        
+        <h4>4. System Status</h4>
+        <button class="test-button" onclick="checkSystemStatus()">Check System Status</button>
+        <button class="test-button" onclick="startPolling()">Start Polling</button>
+        <button class="test-button" onclick="stopPolling()">Stop Polling</button>
+        
+        <div id="test-results"></div>
+        <div id="test-log" class="test-log"></div>
+    </div>
+
+    <script>
+        // Initialize Supabase Client (same credentials as main app)
+        const SUPABASE_URL = 'https://akblmbpxxotmebzghczj.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYmxtYnB4eG90bWViemdoY3pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwNzQxMDUsImV4cCI6MjA3NTY1MDEwNX0.6d8XmmmoSh0hY8OWoymIEX7UnQU6qpgyQsyIe7_KHtI';
+
+        const supabase = supabase_js.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Test variables
+        let pollingInterval = null;
+        let isPolling = false;
+        let testResults = [];
+
+        // Logging function
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('test-log');
+            const color = type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#60a5fa';
+            logElement.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[TEST] ${message}`);
+        }
+
+        function updateStatus(message, type) {
+            const statusElement = document.getElementById('connection-status');
+            statusElement.className = `status ${type}`;
+            statusElement.innerHTML = message;
+        }
+
+        // Initialize on load
+        window.onload = function() {
+            log('🚀 Test suite initialized');
+            testSupabaseConnection();
+        };
+
+        // Test 1: Supabase Connection
+        async function testSupabaseConnection() {
+            try {
+                log('Testing Supabase connection...');
+                const { data, error } = await supabase.from('transcriptions').select('count', { count: 'exact' });
+                
+                if (error) throw error;
+                
+                updateStatus('✅ Supabase connected successfully', 'success');
+                log(`✅ Supabase connection successful. Total records: ${data.length}`, 'success');
+                return true;
+            } catch (error) {
+                updateStatus('❌ Supabase connection failed', 'error');
+                log(`❌ Supabase connection failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // Test 2: Transcriptions Table
+        async function testTranscriptionsTable() {
+            try {
+                log('Testing transcriptions table access...');
+                const { data, error } = await supabase
+                    .from('transcriptions')
+                    .select('*')
+                    .eq('is_announcement', true)
+                    .limit(5);
+                
+                if (error) throw error;
+                
+                log(`✅ Table access successful. Found ${data.length} announcements`, 'success');
+                log(`Latest announcements: ${JSON.stringify(data, null, 2)}`);
+                return true;
+            } catch (error) {
+                log(`❌ Table access failed: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // Test 3: Alert Functions
+        function testCriticalAlert() {
+            log('🚨 Testing CRITICAL alert...');
+            showTestAlert({
+                title: '🚨 EMERGENCY ALERT',
+                message: 'EMERGENCY: Fire detected in building. Please evacuate immediately using nearest exit.',
+                type: 'FIRE',
+                severity: 'critical',
+                timestamp: new Date().toLocaleTimeString()
+            });
+        }
+
+        function testHighAlert() {
+            log('⚠️ Testing HIGH priority alert...');
+            showTestAlert({
+                title: '⚠️ IMPORTANT ANNOUNCEMENT',
+                message: 'Attention all visitors: Important security briefing will begin in 5 minutes in the main hall.',
+                type: 'general',
+                severity: 'high',
+                timestamp: new Date().toLocaleTimeString()
+            });
+        }
+
+        function testMediumAlert() {
+            log('📢 Testing MEDIUM priority alert...');
+            showTestAlert({
+                title: '📢 Live Announcement',
+                message: 'Announcement: The conference lunch break will begin at 12:30 PM in the dining hall.',
+                type: 'general',
+                severity: 'medium',
+                timestamp: new Date().toLocaleTimeString()
+            });
+        }
+
+        // Test Alert Display Function
+        function showTestAlert(alertData) {
+            // Create or get alert container
+            let alertContainer = document.getElementById('test-alerts');
+            if (!alertContainer) {
+                alertContainer = document.createElement('div');
+                alertContainer.id = 'test-alerts';
+                alertContainer.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 1000000;
+                    max-width: 400px;
+                    pointer-events: none;
+                `;
+                document.body.appendChild(alertContainer);
+            }
+
+            // Create alert element
+            const alertElement = document.createElement('div');
+            alertElement.className = 'test-alert';
+            alertElement.style.cssText = `
+                background: ${alertData.severity === 'critical' ? '#dc2626' : alertData.severity === 'high' ? '#d97706' : '#059669'};
+                color: white;
+                padding: 16px;
+                margin-bottom: 10px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                border-left: 4px solid rgba(255,255,255,0.8);
+                pointer-events: auto;
+                cursor: pointer;
+                transform: translateX(420px);
+                transition: transform 0.3s ease;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            `;
+
+            alertElement.innerHTML = `
+                <div style="font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>${alertData.title}</span>
+                    <span style="font-size: 12px; opacity: 0.9;">${alertData.timestamp}</span>
+                </div>
+                <div style="font-size: 14px; line-height: 1.4;">
+                    ${alertData.message}
+                </div>
+                <div style="font-size: 11px; margin-top: 8px; opacity: 0.8;">
+                    TEST ALERT • Click to dismiss
+                </div>
+            `;
+
+            // Add to container
+            alertContainer.appendChild(alertElement);
+
+            // Animate in
+            setTimeout(() => {
+                alertElement.style.transform = 'translateX(0)';
+            }, 100);
+
+            // Auto dismiss after 8 seconds
+            const dismissTimer = setTimeout(() => {
+                dismissAlert(alertElement);
+            }, 8000);
+
+            // Click to dismiss
+            alertElement.addEventListener('click', () => {
+                clearTimeout(dismissTimer);
+                dismissAlert(alertElement);
+            });
+
+            log(`✅ Alert displayed: ${alertData.severity.toUpperCase()}`, 'success');
+        }
+
+        function dismissAlert(alertElement) {
+            alertElement.style.transform = 'translateX(420px)';
+            setTimeout(() => {
+                if (alertElement.parentNode) {
+                    alertElement.parentNode.removeChild(alertElement);
+                }
+            }, 300);
+        }
+
+        // Test 4: Polling System
+        function testPollingSystem() {
+            if (isPolling) {
+                log('⚠️ Polling already active', 'error');
+                return;
+            }
+            
+            log('🔄 Testing polling system...');
+            startPolling();
+            
+            setTimeout(() => {
+                log('✅ Polling test completed', 'success');
+                stopPolling();
+            }, 10000); // Test for 10 seconds
+        }
+
+        function startPolling() {
+            if (isPolling) return;
+            
+            isPolling = true;
+            log('🔄 Starting transcription polling...');
+            
+            pollingInterval = setInterval(async () => {
+                try {
+                    const { data, error } = await supabase
+                        .from('transcriptions')
+                        .select('*')
+                        .eq('is_announcement', true)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+
+                    if (error) throw error;
+
+                    if (data && data.length > 0) {
+                        const latest = data[0];
+                        const timeDiff = (new Date() - new Date(latest.created_at)) / 1000;
+                        log(`📊 Latest transcription: ${latest.id} (${timeDiff.toFixed(1)}s ago)`);
+                    }
+                } catch (error) {
+                    log(`❌ Polling error: ${error.message}`, 'error');
+                }
+            }, 2000);
+        }
+
+        function stopPolling() {
+            if (!isPolling) return;
+            
+            isPolling = false;
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+            log('🔇 Stopped transcription polling');
+        }
+
+        // Test 5: Insert Test Record
+        async function testInsertAndAlert() {
+            try {
+                log('📝 Inserting test transcription record...');
+                
+                const testRecord = {
+                    transcription_text: `TEST ALERT ${new Date().toLocaleTimeString()}: This is a test emergency announcement for system verification.`,
+                    is_announcement: true,
+                    announcement_type: 'emergency',
+                    device_id: 'test_device_wifi_integration',
+                    created_at: new Date().toISOString()
+                };
+
+                const { data, error } = await supabase
+                    .from('transcriptions')
+                    .insert(testRecord)
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                log(`✅ Test record inserted: ID ${data.id}`, 'success');
+                
+                // Simulate alert
+                setTimeout(() => {
+                    showTestAlert({
+                        title: '🧪 TEST INTEGRATION ALERT',
+                        message: testRecord.transcription_text,
+                        type: 'emergency',
+                        severity: 'high',
+                        timestamp: new Date().toLocaleTimeString()
+                    });
+                }, 1000);
+
+                return data;
+            } catch (error) {
+                log(`❌ Insert test failed: ${error.message}`, 'error');
+                return null;
+            }
+        }
+
+        // Test 6: Clear Test Data
+        async function clearTestData() {
+            try {
+                log('🗑️ Clearing test data...');
+                
+                const { data, error } = await supabase
+                    .from('transcriptions')
+                    .delete()
+                    .like('device_id', '%test%');
+
+                if (error) throw error;
+                
+                log(`✅ Test data cleared successfully`, 'success');
+            } catch (error) {
+                log(`❌ Clear test data failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 7: System Status
+        function checkSystemStatus() {
+            log('📊 Checking system status...');
+            
+            const status = {
+                supabaseConnected: !!supabase,
+                pollingActive: isPolling,
+                alertsEnabled: true,
+                testSuiteActive: true,
+                timestamp: new Date().toISOString()
+            };
+            
+            log(`System Status: ${JSON.stringify(status, null, 2)}`);
+            
+            // Update UI
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = `
+                <div class="status ${status.supabaseConnected ? 'success' : 'error'}">
+                    Supabase: ${status.supabaseConnected ? '✅ Connected' : '❌ Disconnected'}
+                </div>
+                <div class="status ${status.pollingActive ? 'success' : 'info'}">
+                    Polling: ${status.pollingActive ? '🔄 Active' : '⏸️ Stopped'}
+                </div>
+                <div class="status success">
+                    Alerts: ✅ Enabled
+                </div>
+            `;
+        }
+
+        // Initialize status check
+        setTimeout(checkSystemStatus, 1000);
+    </script>
+</body>
+</html>

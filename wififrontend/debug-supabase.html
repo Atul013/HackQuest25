@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Supabase Connection Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Supabase Connection Test</h1>
+    <div id="status">Testing...</div>
+    <button onclick="testConnection()">Test Connection</button>
+    <button onclick="testData()">Test Data Fetch</button>
+    <button onclick="insertTestData()">Insert Test Data</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const SUPABASE_URL = 'https://akblmbpxxotmebzghczj.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYmxtYnB4eG90bWViemdoY3pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwNzQxMDUsImV4cCI6MjA3NTY1MDEwNX0.6d8XmmmoSh0hY8OWoymIEX7UnQU6qpgyQsyIe7_KHtI';
+        
+        let supabase = null;
+        
+        function initSupabase() {
+            try {
+                supabase = window.supabase_js.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                document.getElementById('status').innerHTML = '✅ Supabase client created';
+                return true;
+            } catch (error) {
+                document.getElementById('status').innerHTML = '❌ Error: ' + error.message;
+                return false;
+            }
+        }
+        
+        async function testConnection() {
+            if (!supabase) initSupabase();
+            
+            try {
+                const { data, error } = await supabase.from('transcriptions').select('count').limit(1);
+                if (error) {
+                    document.getElementById('results').innerHTML = '❌ Connection failed: ' + error.message;
+                } else {
+                    document.getElementById('results').innerHTML = '✅ Connection successful!';
+                }
+            } catch (err) {
+                document.getElementById('results').innerHTML = '❌ Error: ' + err.message;
+            }
+        }
+        
+        async function testData() {
+            if (!supabase) initSupabase();
+            
+            try {
+                const { data, error } = await supabase
+                    .from('transcriptions')
+                    .select('*')
+                    .eq('is_announcement', true)
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+                
+                if (error) {
+                    document.getElementById('results').innerHTML = '❌ Data fetch failed: ' + error.message;
+                } else {
+                    document.getElementById('results').innerHTML = '✅ Found ' + data.length + ' transcriptions: <pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                }
+            } catch (err) {
+                document.getElementById('results').innerHTML = '❌ Error: ' + err.message;
+            }
+        }
+        
+        async function insertTestData() {
+            if (!supabase) initSupabase();
+            
+            try {
+                const testData = {
+                    transcription_text: "Test announcement from deployed site: " + new Date().toLocaleTimeString(),
+                    is_announcement: true,
+                    device_id: "deployed_test_device",
+                    created_at: new Date().toISOString()
+                };
+                
+                const { data, error } = await supabase
+                    .from('transcriptions')
+                    .insert(testData)
+                    .select();
+                
+                if (error) {
+                    document.getElementById('results').innerHTML = '❌ Insert failed: ' + error.message;
+                } else {
+                    document.getElementById('results').innerHTML = '✅ Test data inserted successfully: ' + JSON.stringify(data, null, 2);
+                }
+            } catch (err) {
+                document.getElementById('results').innerHTML = '❌ Error: ' + err.message;
+            }
+        }
+        
+        // Auto-initialize
+        document.addEventListener('DOMContentLoaded', initSupabase);
+    </script>
+</body>
+</html>

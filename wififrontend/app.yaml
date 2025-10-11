@@ -1,0 +1,45 @@
+runtime: nodejs18
+
+handlers:
+  # Serve static files
+  - url: /style-modern.css
+    static_files: style-modern.css
+    upload: style-modern.css
+
+  - url: /wifi-login.css
+    static_files: wifi-login.css
+    upload: wifi-login.css
+
+  - url: /style.css
+    static_files: style.css
+    upload: style.css
+
+  # Serve the main login page as default
+  - url: /
+    static_files: login-mypublicwifi.html
+    upload: login-mypublicwifi.html
+
+  # Serve specific pages
+  - url: /login
+    static_files: login-mypublicwifi.html
+    upload: login-mypublicwifi.html
+
+  - url: /success
+    static_files: success.html
+    upload: success.html
+
+  - url: /success.html
+    static_files: success.html
+    upload: success.html
+
+  # Serve all other static files
+  - url: /(.*)
+    static_files: \1
+    upload: (.*)
+
+automatic_scaling:
+  min_instances: 0
+  max_instances: 10
+
+env_variables:
+  NODE_ENV: production
