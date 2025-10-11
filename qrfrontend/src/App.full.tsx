@@ -1,4 +1,4 @@
-import { ShieldAlert, MapPin, Bell, CheckCircle, AlertTriangle, Clock, Users } from 'lucide-react';
+import { ShieldAlert, MapPin, Bell, CheckCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface LocationData {
@@ -7,64 +7,64 @@ interface LocationData {
   timestamp: number;
 }
 
-interface Announcement {
-  id: string;
-  title: string;
-  message: string;
-  type: 'emergency' | 'warning' | 'info';
-  timestamp: number;
-  isLive: boolean;
-  location?: string;
-}
-
 function App() {
   const [step, setStep] = useState<'initial' | 'installing' | 'pwa-ready' | 'installed' | 'requesting-permission' | 'active'>('initial');
   const [locationPermission, setLocationPermission] = useState<'denied' | 'granted' | 'pending' | null>(null);
   const [currentLocation, setCurrentLocation] = useState<LocationData | null>(null);
   const [isInGeofence, setIsInGeofence] = useState(false);
   const [alertsEnabled, setAlertsEnabled] = useState(false);
+  const [lastBackendResult, setLastBackendResult] = useState<any>(null);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [canInstall, setCanInstall] = useState(false);
-  const [activeTab, setActiveTab] = useState<'live' | 'previous'>('live');
-  const [announcements, setAnnouncements] = useState<Announcement[]>([
-    {
-      id: '1',
-      title: 'Emergency Alert Active',
-      message: 'You are now connected to the RSETQuest emergency alert system. You will receive real-time notifications for your area.',
-      type: 'info',
-      timestamp: Date.now(),
-      isLive: true,
-      location: 'Your Location'
-    },
-    {
-      id: '2',
-      title: 'System Status',
-      message: 'All emergency services are operational. Location tracking is active.',
-      type: 'info',
-      timestamp: Date.now() - 300000, // 5 minutes ago
-      isLive: false,
-      location: 'System'
-    },
-    {
-      id: '3',
-      title: 'Weather Update',
-      message: 'Clear skies expected. No weather alerts in your area.',
-      type: 'info',
-      timestamp: Date.now() - 900000, // 15 minutes ago
-      isLive: false,
-      location: 'Regional Weather'
-    }
-  ]);
 
-  // Geofence configuration (example coordinates - replace with actual values)
-  const GEOFENCE_CENTER = { lat: 40.7589, lng: -73.9851 }; // Example: Times Square
-  const GEOFENCE_RADIUS = 1000; // 1km radius in meters
+  // Geofence configuration (defaults will be overwritten by backend /venue/:id)
+  const [GEOFENCE_CENTER, setGEOFENCE_CENTER] = useState({ lat: 40.7589, lng: -73.9851 });
+  const [GEOFENCE_RADIUS, setGEOFENCE_RADIUS] = useState(1000);
+
+  // Backend geofence API - prefer Vite env var VITE_GEOFENCE_API_URL (full endpoint), fallback to deployed Cloud Run URL
+  const GEOFENCE_API_URL = (import.meta.env as any).VITE_GEOFENCE_API_URL || 'https://geofence-service-701994675545.asia-south1.run.app/location';
+  const GEOFENCE_API_BASE = GEOFENCE_API_URL.replace(/\/location\/?$/, '');
+  const CHECK_INTERVAL_MS_CONFIG = parseInt(((import.meta.env as any).VITE_CHECK_INTERVAL_MS || '120000'), 10);
+
+  // Simple stable user id persisted in localStorage so service can track per-user state
+  const getOrCreateUserId = () => {
+    try {
+      let id = localStorage.getItem('hq_user_id');
+      if (!id) {
+        id = 'user_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+        localStorage.setItem('hq_user_id', id);
+      }
+      return id;
+    } catch (e) {
+      return 'user_' + Date.now();
+    }
+  };
 
   useEffect(() => {
     // Check if PWA is already installed
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setStep('installed');
     }
+
+    // Fetch authoritative venue info from backend
+    (async () => {
+      try {
+        const base = GEOFENCE_API_BASE;
+        const resp = await fetch(`${base}/venue/1`);
+        if (resp.ok) {
+          const j = await resp.json();
+          if (j && j.venue) {
+            // Coerce values to numbers (avoid string values from API) and ensure a sensible default
+            setGEOFENCE_CENTER({ lat: Number(j.venue.latitude) || 40.7589, lng: Number(j.venue.longitude) || -73.9851 });
+            const radiusNum = Number(j.venue.radius ?? j.venue.radius_meters) || 1000;
+            setGEOFENCE_RADIUS(radiusNum);
+            console.log('Loaded venue from API', j.venue, '-> radius (m):', radiusNum);
+          }
+        }
+      } catch (err: any) {
+        console.warn('Could not fetch venue info from backend', err?.message || err);
+      }
+    })();
 
     // Listen for PWA install prompt
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -112,13 +112,18 @@ function App() {
       GEOFENCE_CENTER.lat,
       GEOFENCE_CENTER.lng
     );
-    
-    const inGeofence = distance <= GEOFENCE_RADIUS;
+
+  // Ensure radius is numeric and apply a tolerance to avoid false negatives
+  const radius = (typeof GEOFENCE_RADIUS === 'number') ? GEOFENCE_RADIUS : (Number(GEOFENCE_RADIUS) || 1000);
+  // Use a tolerance that's at least 5 meters or 2% of the radius (whichever is larger).
+  // This reduces chances of marking a user outside due to small GPS jitter or backend rounding.
+  const EPSILON = Math.max(5, radius * 0.02);
+  const inGeofence = distance <= (radius + EPSILON);
     setIsInGeofence(inGeofence);
-    
-    console.log(`Distance from geofence center: ${distance.toFixed(2)}m`);
+
+  console.log(`Distance from geofence center: ${distance.toFixed(2)} m (radius: ${radius} m, eps: ${EPSILON.toFixed(2)} m)`);
     console.log(`Inside geofence: ${inGeofence}`);
-    
+
     return inGeofence;
   };
 
@@ -186,7 +191,9 @@ function App() {
   };
 
   const startBackgroundTracking = () => {
-    // Check location every 10 minutes (600,000 milliseconds)
+    // Check location periodically. Default 2 minutes (120000ms) to match backend CHECK_INTERVAL_MS
+    const intervalMs = CHECK_INTERVAL_MS_CONFIG || 120000;
+    console.log('Starting background tracking with interval', intervalMs);
     const intervalId = setInterval(() => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -210,7 +217,7 @@ function App() {
           maximumAge: 600000 // 10 minutes
         }
       );
-    }, 600000); // 10 minutes
+  }, intervalMs);
 
     // Store interval ID to clear it later if needed
     localStorage.setItem('geofenceInterval', intervalId.toString());
@@ -218,13 +225,15 @@ function App() {
 
   const sendLocationToBackend = async (location: LocationData) => {
     try {
-      const response = await fetch('https://hackquest-backend-701994675545.asia-south1.run.app/api/geofence/location', {
+      const response = await fetch(GEOFENCE_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: 'user_' + Date.now(), // Generate or get actual user ID
+          userId: getOrCreateUserId(),
+          // venueId may be provided by your app; fallback to 1
+          venueId: 1,
           latitude: location.latitude,
           longitude: location.longitude,
           timestamp: location.timestamp
@@ -233,8 +242,10 @@ function App() {
       
       const result = await response.json();
       console.log('Location sent to backend:', result);
+      setLastBackendResult(result);
     } catch (error) {
       console.error('Failed to send location to backend:', error);
+      setLastBackendResult({ error: String(error) });
     }
   };
 
@@ -270,23 +281,18 @@ function App() {
     }
   };
 
-  const handleEmergencyAlertClick = () => {
-    // Always trigger PWA install when "Enable Emergency Alert" is clicked
-    if (deferredPrompt) {
-      handleInstall();
-    } else {
-      // Show manual install instructions if no prompt available
-      setStep('installing');
-      setTimeout(() => {
-        setStep('pwa-ready');
-      }, 2000);
+  const handleContinue = () => {
+    if (step === 'initial') {
+      if (isPWA()) {
+        // If already installed as PWA, skip to location permission
+        setStep('installed');
+      } else {
+        // If in browser, trigger install prompt
+        handleInstall();
+      }
+    } else if (step === 'installed') {
+      requestLocationPermission();
     }
-  };
-
-  const handleLocationAlertClick = () => {
-    // Trigger location permission when "Enable Location Alert" is clicked (in PWA)
-    setStep('requesting-permission');
-    requestLocationPermission();
   };
 
   return (
@@ -343,10 +349,10 @@ function App() {
 
               <div className="pt-6">
                 <button
-                  onClick={handleEmergencyAlertClick}
+                  onClick={handleContinue}
                   className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold py-4 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 active:scale-95"
                 >
-                  Enable Emergency Alerts
+                  {canInstall ? 'Install Emergency App' : 'Enable Emergency Alerts'}
                 </button>
               </div>
             </>
@@ -459,7 +465,7 @@ function App() {
 
               <div className="pt-6">
                 <button
-                  onClick={handleLocationAlertClick}
+                  onClick={handleContinue}
                   className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold py-4 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 active:scale-95"
                 >
                   Enable Location Alerts
@@ -506,139 +512,56 @@ function App() {
 
               <div className="text-center space-y-3 animate-slide-up">
                 <h1 className="text-3xl font-bold text-slate-800 leading-tight">
-                  RSETQuest Alert Center
+                  Emergency Alerts Active
                 </h1>
                 <p className="text-slate-600 text-lg">
-                  Stay informed with live updates
+                  You're now protected by our alert system
                 </p>
               </div>
 
-              {/* Tab Navigation */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setActiveTab('live')}
-                  className={`flex-1 py-3 px-4 rounded-md font-medium transition-all ${
-                    activeTab === 'live'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-800'
-                  }`}
-                >
-                  <div className="flex items-center justify-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${activeTab === 'live' ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`} />
-                    <span>Live</span>
+              <div className="space-y-4">
+                <div className={`border rounded-lg p-4 ${isInGeofence ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-3 h-3 rounded-full ${isInGeofence ? 'bg-green-500' : 'bg-gray-400'}`} />
+                    <span className="font-semibold text-slate-800">
+                      {isInGeofence ? 'Inside Alert Zone' : 'Outside Alert Zone'}
+                    </span>
                   </div>
-                </button>
-                <button
-                  onClick={() => setActiveTab('previous')}
-                  className={`flex-1 py-3 px-4 rounded-md font-medium transition-all ${
-                    activeTab === 'previous'
-                      ? 'bg-white text-blue-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-800'
-                  }`}
-                >
-                  <div className="flex items-center justify-center space-x-2">
-                    <Clock className="w-4 h-4" />
-                    <span>Previous</span>
-                  </div>
-                </button>
-              </div>
+                  <p className="text-slate-600 text-sm mt-2">
+                    {isInGeofence 
+                      ? 'You will receive emergency notifications for this area.' 
+                      : 'Move closer to the monitored area to receive alerts.'}
+                  </p>
+                </div>
 
-              {/* Announcements List */}
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {announcements
-                  .filter(announcement => activeTab === 'live' ? announcement.isLive : !announcement.isLive)
-                  .map((announcement) => (
-                    <div
-                      key={announcement.id}
-                      className={`p-4 rounded-lg border-l-4 ${
-                        announcement.type === 'emergency'
-                          ? 'bg-red-50 border-red-500 border border-red-200'
-                          : announcement.type === 'warning'
-                          ? 'bg-yellow-50 border-yellow-500 border border-yellow-200'
-                          : 'bg-blue-50 border-blue-500 border border-blue-200'
-                      }`}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <div className={`p-2 rounded-full ${
-                          announcement.type === 'emergency'
-                            ? 'bg-red-100 text-red-600'
-                            : announcement.type === 'warning'
-                            ? 'bg-yellow-100 text-yellow-600'
-                            : 'bg-blue-100 text-blue-600'
-                        }`}>
-                          {announcement.type === 'emergency' ? (
-                            <AlertTriangle className="w-5 h-5" />
-                          ) : announcement.type === 'warning' ? (
-                            <ShieldAlert className="w-5 h-5" />
-                          ) : (
-                            <Bell className="w-5 h-5" />
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between">
-                            <h3 className={`font-semibold ${
-                              announcement.type === 'emergency'
-                                ? 'text-red-800'
-                                : announcement.type === 'warning'
-                                ? 'text-yellow-800'
-                                : 'text-blue-800'
-                            }`}>
-                              {announcement.title}
-                              {announcement.isLive && (
-                                <span className="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                  LIVE
-                                </span>
-                              )}
-                            </h3>
-                            <span className="text-xs text-gray-500">
-                              {new Date(announcement.timestamp).toLocaleTimeString()}
-                            </span>
-                          </div>
-                          <p className={`mt-1 text-sm ${
-                            announcement.type === 'emergency'
-                              ? 'text-red-700'
-                              : announcement.type === 'warning'
-                              ? 'text-yellow-700'
-                              : 'text-blue-700'
-                          }`}>
-                            {announcement.message}
-                          </p>
-                          {announcement.location && (
-                            <div className="flex items-center mt-2 text-xs text-gray-600">
-                              <MapPin className="w-3 h-3 mr-1" />
-                              {announcement.location}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-2 text-blue-800">
+                    <Bell className="w-5 h-5" />
+                    <span className="font-semibold">Background Monitoring</span>
+                  </div>
+                  <p className="text-blue-700 text-sm mt-2">
+                    App checks your location every 10 minutes to ensure you receive timely alerts.
+                  </p>
+                </div>
+
+                {currentLocation && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs">
+                    <div className="text-slate-600">
+                      <div>Lat: {currentLocation.latitude.toFixed(6)}</div>
+                      <div>Lng: {currentLocation.longitude.toFixed(6)}</div>
+                      <div>Updated: {new Date(currentLocation.timestamp).toLocaleTimeString()}</div>
                     </div>
-                  ))}
-                
-                {announcements.filter(announcement => activeTab === 'live' ? announcement.isLive : !announcement.isLive).length === 0 && (
-                  <div className="text-center py-8">
-                    <Users className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-gray-500">
-                      {activeTab === 'live' ? 'No live announcements at the moment' : 'No previous announcements'}
-                    </p>
                   </div>
                 )}
               </div>
 
-              {/* Status Bar */}
-              <div className={`border rounded-lg p-3 ${isInGeofence ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${isInGeofence ? 'bg-green-500' : 'bg-gray-400'}`} />
-                    <span className="text-sm font-medium text-slate-800">
-                      {isInGeofence ? 'Alert Zone Active' : 'Outside Alert Zone'}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-1 text-xs text-gray-600">
-                    <MapPin className="w-3 h-3" />
-                    <span>Tracking</span>
-                  </div>
+              {locationPermission === 'denied' && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-800 text-sm">
+                    ⚠️ Location access denied. Please enable location permissions in your browser settings to receive emergency alerts.
+                  </p>
                 </div>
-              </div>
+              )}
             </>
           )}
 
@@ -646,6 +569,40 @@ function App() {
             <p className="text-xs text-slate-500 leading-relaxed">
               By continuing, you consent to location tracking and emergency notifications. Your privacy is protected.
             </p>
+          </div>
+        </div>
+
+        {/* Debug overlay (visible to developers/testing only) */}
+        <div className="fixed right-4 bottom-4 z-50 bg-white/90 border border-slate-200 rounded-lg p-3 text-sm shadow-lg w-72">
+          <div className="font-semibold text-slate-700">Debug — Geofence</div>
+          <div className="mt-2 text-xs text-slate-600">
+            <div>Venue center: {GEOFENCE_CENTER.lat.toFixed(6)}, {GEOFENCE_CENTER.lng.toFixed(6)}</div>
+            <div>Radius: {Math.round(GEOFENCE_RADIUS)} m</div>
+            <hr className="my-2" />
+            <div>Current: {currentLocation ? `${currentLocation.latitude.toFixed(6)}, ${currentLocation.longitude.toFixed(6)}` : 'n/a'}</div>
+            <div>Distance: {currentLocation ? `${calculateDistance(currentLocation.latitude, currentLocation.longitude, GEOFENCE_CENTER.lat, GEOFENCE_CENTER.lng).toFixed(1)} m` : 'n/a'}</div>
+            <div className="mt-2">Inside (client): {isInGeofence ? 'yes' : 'no'}</div>
+            <div className="mt-2">Last backend:</div>
+            <pre className="bg-slate-50 p-2 rounded text-xs max-h-28 overflow-auto">{lastBackendResult ? JSON.stringify(lastBackendResult) : 'n/a'}</pre>
+            <div className="flex gap-2 mt-2">
+              <button
+                className="flex-1 bg-blue-500 text-white py-1 rounded"
+                onClick={() => {
+                  if (currentLocation) sendLocationToBackend(currentLocation);
+                }}
+              >Send now</button>
+              <button
+                className="flex-1 bg-gray-200 text-slate-700 py-1 rounded"
+                onClick={() => {
+                  // Force a fresh high-accuracy location read for debugging
+                  navigator.geolocation.getCurrentPosition((pos) => {
+                    const l: LocationData = { latitude: pos.coords.latitude, longitude: pos.coords.longitude, timestamp: Date.now() };
+                    setCurrentLocation(l);
+                    checkGeofenceStatus(l);
+                  }, (err) => console.warn('geo err', err), { enableHighAccuracy: true, timeout: 20000 });
+                }}
+              >Refresh</button>
+            </div>
           </div>
         </div>
       </div>
