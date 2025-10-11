@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Test Transcripts Query</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body style="font-family: Arial; padding: 40px; background: #f5f5f5;">
+    <h1>🔍 Transcript Database Test</h1>
+    <button onclick="testQuery()" style="padding: 15px 30px; font-size: 16px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 8px;">
+        Test Query
+    </button>
+    
+    <div id="results" style="margin-top: 30px; background: white; padding: 20px; border-radius: 8px;"></div>
+
+    <script>
+        const SUPABASE_URL = 'https://akblmbpxxotmebzghczj.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYmxtYnB4eG90bWViemdoY3pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwNzQxMDUsImV4cCI6MjA3NTY1MDEwNX0.6d8XmmmoSh0hY8OWoymIEX7UnQU6qpgyQsyIe7_KHtI';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        async function testQuery() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<p>⏳ Testing database connection...</p>';
+            
+            try {
+                // Test 1: Simple count
+                results.innerHTML += '<h3>Test 1: Count all transcripts</h3>';
+                const { count: totalCount, error: countError } = await supabase
+                    .from('transcriptions')
+                    .select('*', { count: 'exact', head: true });
+                
+                if (countError) {
+                    results.innerHTML += `<p style="color: red;">❌ Error: ${countError.message}</p>`;
+                } else {
+                    results.innerHTML += `<p style="color: green;">✅ Total transcripts: ${totalCount}</p>`;
+                }
+                
+                // Test 2: Count test data
+                results.innerHTML += '<h3>Test 2: Count test data (device_id=live_audio_device)</h3>';
+                const { count: testCount, error: testCountError } = await supabase
+                    .from('transcriptions')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('device_id', 'live_audio_device');
+                
+                if (testCountError) {
+                    results.innerHTML += `<p style="color: red;">❌ Error: ${testCountError.message}</p>`;
+                } else {
+                    results.innerHTML += `<p style="color: green;">✅ Test transcripts: ${testCount}</p>`;
+                }
+                
+                // Test 3: Fetch last 10 (no JOIN)
+                results.innerHTML += '<h3>Test 3: Fetch last 10 transcripts (no JOIN)</h3>';
+                const { data: simpleData, error: simpleError } = await supabase
+                    .from('transcriptions')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                if (simpleError) {
+                    results.innerHTML += `<p style="color: red;">❌ Error: ${simpleError.message}</p>`;
+                } else {
+                    results.innerHTML += `<p style="color: green;">✅ Retrieved ${simpleData.length} transcripts</p>`;
+                    results.innerHTML += '<pre style="background: #f0f0f0; padding: 10px; overflow-x: auto;">' + 
+                        JSON.stringify(simpleData, null, 2) + '</pre>';
+                }
+                
+                // Test 4: Fetch with JOIN to venues
+                results.innerHTML += '<h3>Test 4: Fetch with venues JOIN</h3>';
+                const { data: joinData, error: joinError } = await supabase
+                    .from('transcriptions')
+                    .select(`
+                        *,
+                        venues (name)
+                    `)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                if (joinError) {
+                    results.innerHTML += `<p style="color: red;">❌ Error: ${joinError.message}</p>`;
+                    results.innerHTML += `<p style="color: red;">Details: ${JSON.stringify(joinError)}</p>`;
+                } else {
+                    results.innerHTML += `<p style="color: green;">✅ Retrieved ${joinData.length} transcripts with venue names</p>`;
+                    results.innerHTML += '<pre style="background: #f0f0f0; padding: 10px; overflow-x: auto;">' + 
+                        JSON.stringify(joinData, null, 2) + '</pre>';
+                }
+                
+            } catch (err) {
+                results.innerHTML += `<p style="color: red;">❌ Caught error: ${err.message}</p>`;
+                console.error('Full error:', err);
+            }
+        }
+    </script>
+</body>
+</html>

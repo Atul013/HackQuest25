@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screen Flash Comparison</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            background: #1F2937;
+            color: white;
+            padding: 40px;
+            margin: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 50px;
+            font-size: 36px;
+        }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 50px;
+        }
+        .alert-type {
+            background: #374151;
+            border-radius: 16px;
+            padding: 30px;
+            text-align: center;
+        }
+        .alert-type h2 {
+            margin-top: 0;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+        .flash-demo {
+            height: 300px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+            margin: 20px 0;
+            border: 3px solid #4B5563;
+            position: relative;
+            overflow: hidden;
+        }
+        .flash-white {
+            background: white;
+            color: #1F2937;
+        }
+        .flash-red {
+            background: #DC2626;
+            color: white;
+        }
+        .pattern-info {
+            background: #4B5563;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        .pattern-info h3 {
+            margin-top: 0;
+            color: #60A5FA;
+        }
+        .pattern-info ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .pattern-info li {
+            margin: 8px 0;
+        }
+        .demo-button {
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.2s;
+        }
+        .btn-white {
+            background: white;
+            color: #1F2937;
+        }
+        .btn-white:hover {
+            background: #F3F4F6;
+        }
+        .btn-red {
+            background: #DC2626;
+            color: white;
+        }
+        .btn-red:hover {
+            background: #B91C1C;
+        }
+        .timeline {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            height: 60px;
+            background: #1F2937;
+            border-radius: 8px;
+            position: relative;
+        }
+        .pulse {
+            width: 80px;
+            height: 40px;
+            margin: 0 10px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .pulse-white {
+            background: white;
+            color: #1F2937;
+        }
+        .pulse-gap {
+            width: 40px;
+            height: 4px;
+            background: #4B5563;
+        }
+        .morse-timeline {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 5px;
+            padding: 10px;
+        }
+        .morse-dot {
+            width: 30px;
+            height: 30px;
+            background: #DC2626;
+            border-radius: 50%;
+        }
+        .morse-dash {
+            width: 70px;
+            height: 30px;
+            background: #DC2626;
+            border-radius: 15px;
+        }
+        .morse-gap {
+            width: 20px;
+        }
+        .use-cases {
+            background: #374151;
+            border-radius: 12px;
+            padding: 30px;
+            margin-top: 30px;
+        }
+        .use-cases h2 {
+            text-align: center;
+            margin-top: 0;
+        }
+        .use-case-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .use-case {
+            background: #4B5563;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .use-case h3 {
+            margin-top: 0;
+            color: #60A5FA;
+        }
+        .use-case ul {
+            margin: 10px 0 0 0;
+            padding-left: 20px;
+        }
+        @keyframes whitePulse {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 0.85; }
+        }
+        @keyframes redMorse {
+            0%, 100% { opacity: 0; }
+            10%, 30%, 50% { opacity: 0.9; }
+            20%, 40% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Screen Flash Comparison</h1>
+        
+        <div class="comparison">
+            <!-- White Double Pulse -->
+            <div class="alert-type">
+                <h2>⚪ General Alerts</h2>
+                <div class="flash-demo flash-white">
+                    WHITE
+                </div>
+                
+                <h3>Timeline (1.1 seconds):</h3>
+                <div class="timeline">
+                    <div class="pulse pulse-white">PULSE 1<br>400ms</div>
+                    <div class="pulse-gap"></div>
+                    <div class="pulse pulse-white">PULSE 2<br>400ms</div>
+                </div>
+                
+                <button class="demo-button btn-white" onclick="demoWhite()">
+                    ▶ Demo White Pulse
+                </button>
+                
+                <div class="pattern-info">
+                    <h3>Properties:</h3>
+                    <ul>
+                        <li><strong>Color:</strong> White</li>
+                        <li><strong>Pattern:</strong> 2 quick pulses</li>
+                        <li><strong>Duration:</strong> ~1.1 seconds</li>
+                        <li><strong>Opacity:</strong> 85%</li>
+                        <li><strong>Use:</strong> General announcements</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Red Morse Code -->
+            <div class="alert-type">
+                <h2>🔴 Critical Alerts</h2>
+                <div class="flash-demo flash-red">
+                    RED
+                </div>
+                
+                <h3>SOS Morse Code Pattern:</h3>
+                <div class="morse-timeline">
+                    <!-- S (···) -->
+                    <div class="morse-dot"></div>
+                    <div class="morse-dot"></div>
+                    <div class="morse-dot"></div>
+                    <div class="morse-gap"></div>
+                    <!-- O (−−−) -->
+                    <div class="morse-dash"></div>
+                    <div class="morse-dash"></div>
+                    <div class="morse-dash"></div>
+                    <div class="morse-gap"></div>
+                    <!-- S (···) -->
+                    <div class="morse-dot"></div>
+                    <div class="morse-dot"></div>
+                    <div class="morse-dot"></div>
+                </div>
+                <div style="text-align: center; margin-top: 10px; color: #9CA3AF; font-size: 14px;">
+                    · · · (S) — — — (O) · · · (S)
+                </div>
+                
+                <button class="demo-button btn-red" onclick="demoRed()">
+                    ▶ Demo Red Morse
+                </button>
+                
+                <div class="pattern-info">
+                    <h3>Properties:</h3>
+                    <ul>
+                        <li><strong>Color:</strong> Red</li>
+                        <li><strong>Pattern:</strong> Morse code (SOS/FIRE)</li>
+                        <li><strong>Duration:</strong> 8-10 seconds</li>
+                        <li><strong>Opacity:</strong> 90%</li>
+                        <li><strong>Repeats:</strong> 3 times</li>
+                        <li><strong>Use:</strong> Life-threatening emergencies</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Use Cases -->
+        <div class="use-cases">
+            <h2>📋 When to Use Each Type</h2>
+            <div class="use-case-grid">
+                <div class="use-case">
+                    <h3>⚪ White Double Pulse</h3>
+                    <ul>
+                        <li>Event announcements</li>
+                        <li>Schedule changes</li>
+                        <li>Traffic alerts</li>
+                        <li>Weather updates</li>
+                        <li>Facility notifications</li>
+                        <li>General information</li>
+                    </ul>
+                    <p style="margin-top: 15px; color: #9CA3AF; font-size: 14px;">
+                        ✓ Professional and clear<br>
+                        ✓ Not alarming<br>
+                        ✓ Battery efficient<br>
+                        ✓ Quick to acknowledge
+                    </p>
+                </div>
+                
+                <div class="use-case">
+                    <h3>🔴 Red Morse Code</h3>
+                    <ul>
+                        <li>Active shooter</li>
+                        <li>Fire emergency</li>
+                        <li>Building collapse</li>
+                        <li>Medical emergency</li>
+                        <li>Evacuation order</li>
+                        <li>Life-threatening danger</li>
+                    </ul>
+                    <p style="margin-top: 15px; color: #9CA3AF; font-size: 14px;">
+                        ✓ Maximum urgency<br>
+                        ✓ Unmistakable pattern<br>
+                        ✓ Universal emergency signal<br>
+                        ✓ Cannot be ignored
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 50px; padding: 30px; background: #374151; border-radius: 12px;">
+            <h2>🧪 Test Both Patterns</h2>
+            <p style="color: #9CA3AF;">Open the haptic-test-suite.html to test these patterns on your device!</p>
+            <button class="demo-button btn-white" onclick="window.location.href='haptic-test-suite.html'">
+                Open Test Suite
+            </button>
+        </div>
+    </div>
+    
+    <!-- Flash overlay for demos -->
+    <div id="flash-overlay" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 999999;
+        transition: opacity 0.1s;
+    "></div>
+    
+    <script>
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        async function demoWhite() {
+            const overlay = document.getElementById('flash-overlay');
+            overlay.style.backgroundColor = 'white';
+            
+            // First pulse
+            overlay.style.opacity = '0.85';
+            await sleep(400);
+            overlay.style.opacity = '0';
+            await sleep(300);
+            
+            // Second pulse
+            overlay.style.opacity = '0.85';
+            await sleep(400);
+            overlay.style.opacity = '0';
+            
+            console.log('✓ White double pulse completed');
+        }
+        
+        async function demoRed() {
+            const overlay = document.getElementById('flash-overlay');
+            overlay.style.backgroundColor = 'red';
+            
+            // SOS Morse pattern: ... --- ...
+            // S (···)
+            for (let i = 0; i < 3; i++) {
+                overlay.style.opacity = '0.9';
+                await sleep(200);
+                overlay.style.opacity = '0';
+                await sleep(200);
+            }
+            await sleep(400);
+            
+            // O (−−−)
+            for (let i = 0; i < 3; i++) {
+                overlay.style.opacity = '0.9';
+                await sleep(600);
+                overlay.style.opacity = '0';
+                await sleep(200);
+            }
+            await sleep(400);
+            
+            // S (···)
+            for (let i = 0; i < 3; i++) {
+                overlay.style.opacity = '0.9';
+                await sleep(200);
+                overlay.style.opacity = '0';
+                await sleep(200);
+            }
+            
+            console.log('✓ Red Morse code (SOS) completed');
+        }
+    </script>
+</body>
+</html>

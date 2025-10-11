@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Location Permission Test - FIXED</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2C3E50;
+            margin-top: 0;
+        }
+        .warning {
+            background: #FEF3C7;
+            border-left: 4px solid #F59E0B;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background: #D1FAE5;
+            border-left: 4px solid #10B981;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .error {
+            background: #FEE2E2;
+            border-left: 4px solid #EF4444;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        button {
+            background: #3B82F6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: #2563EB;
+        }
+        button:disabled {
+            background: #9CA3AF;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+        code {
+            background: #F3F4F6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .steps {
+            background: #DBEAFE;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .steps ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .steps li {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🌍 Location Permission Test</h1>
+        
+        <div class="warning">
+            <strong>⚠️ CRITICAL FIX APPLIED!</strong><br>
+            Removed the alert() before geolocation request. The browser should now show the native "Allow/Deny" prompt immediately.
+        </div>
+        
+        <div class="steps">
+            <strong>📝 What to Expect:</strong>
+            <ol>
+                <li>Click the button below</li>
+                <li><strong>Browser shows permission popup immediately</strong></li>
+                <li>Options: "Allow" / "Block" / "Allow this time"</li>
+                <li>NO intermediate alerts or dialogs!</li>
+            </ol>
+        </div>
+        
+        <button id="testBtn" onclick="testLocationFixed()">
+            🎯 Test Location Permission (FIXED)
+        </button>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <div class="card">
+        <h2>🔍 What Was Wrong Before</h2>
+        <p><strong>Problem:</strong> Showing <code>alert()</code> before calling geolocation broke the "user gesture chain"</p>
+        
+        <pre style="background: #FEE2E2; padding: 15px; border-radius: 8px; overflow-x: auto;"><code>// ❌ BEFORE (BROKEN):
+alert("Please allow location..."); // This breaks the gesture!
+navigator.geolocation.getCurrentPosition(...);</code></pre>
+        
+        <pre style="background: #D1FAE5; padding: 15px; border-radius: 8px; overflow-x: auto;"><code>// ✅ AFTER (FIXED):
+// No alert - direct call!
+navigator.geolocation.getCurrentPosition(...);</code></pre>
+    </div>
+
+    <div class="card">
+        <h2>🧪 Testing Checklist</h2>
+        <ul>
+            <li>✅ Click button directly triggers geolocation</li>
+            <li>✅ No alert() dialogs before permission prompt</li>
+            <li>✅ Browser shows native "Allow/Deny" dialog</li>
+            <li>✅ Button shows "Waiting for location permission..."</li>
+            <li>✅ Clear error messages if denied</li>
+        </ul>
+    </div>
+
+    <script>
+        var userLocation = null;
+
+        function testLocationFixed() {
+            const resultDiv = document.getElementById('result');
+            const btn = document.getElementById('testBtn');
+            
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.style.background = '#DBEAFE';
+            resultDiv.innerHTML = '⏳ <strong>Waiting for permission...</strong><br><small>Browser should show Allow/Deny prompt now!</small>';
+            
+            // Disable button and show waiting state
+            btn.disabled = true;
+            btn.textContent = 'Waiting for location permission...';
+            
+            if (!navigator.geolocation) {
+                resultDiv.style.background = '#FEE2E2';
+                resultDiv.innerHTML = '❌ <strong>Geolocation not supported</strong><br>Your browser does not support the Geolocation API.';
+                btn.disabled = false;
+                btn.textContent = '🎯 Test Location Permission (FIXED)';
+                return;
+            }
+            
+            console.log('🌍 Requesting location permission (NO ALERT FIRST!)...');
+            
+            // FIXED: Direct call, no alert() before!
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    // SUCCESS
+                    console.log('✅ Location obtained:', position);
+                    userLocation = position;
+                    
+                    resultDiv.style.background = '#D1FAE5';
+                    resultDiv.innerHTML = `
+                        ✅ <strong>Location Permission Granted!</strong><br><br>
+                        <strong>Coordinates:</strong><br>
+                        Latitude: <code>${position.coords.latitude.toFixed(6)}</code><br>
+                        Longitude: <code>${position.coords.longitude.toFixed(6)}</code><br>
+                        Accuracy: <code>${Math.round(position.coords.accuracy)} meters</code><br><br>
+                        <strong style="color: #059669;">✓ Your WiFi portal will work correctly!</strong>
+                    `;
+                    
+                    btn.disabled = false;
+                    btn.textContent = '🎯 Test Again';
+                },
+                function(error) {
+                    // ERROR
+                    console.error('❌ Location error:', error);
+                    
+                    let errorMsg = '';
+                    
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg = `
+                                ❌ <strong>Permission Denied</strong><br><br>
+                                You clicked "Block" or "Deny".<br><br>
+                                <strong>To fix:</strong><br>
+                                1. Click the location icon 🌍 in browser address bar<br>
+                                2. Change permission to "Allow"<br>
+                                3. Refresh and try again<br><br>
+                                <em>This is expected if you denied access - the prompt DID appear! ✓</em>
+                            `;
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg = '❌ <strong>Position Unavailable</strong><br>Location information is not available.<br>Check your device GPS settings.';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg = '❌ <strong>Request Timeout</strong><br>Location request took too long.<br>Try again in a moment.';
+                            break;
+                        default:
+                            errorMsg = `❌ <strong>Unknown Error</strong><br>${error.message}`;
+                    }
+                    
+                    resultDiv.style.background = '#FEE2E2';
+                    resultDiv.innerHTML = errorMsg;
+                    
+                    btn.disabled = false;
+                    btn.textContent = '🎯 Try Again';
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 0
+                }
+            );
+        }
+        
+        // Show browser info
+        console.log('Browser:', navigator.userAgent);
+        console.log('HTTPS:', window.location.protocol === 'https:');
+        console.log('Geolocation available:', !!navigator.geolocation);
+        console.log('');
+        console.log('✅ FIX APPLIED: No alert() before geolocation call');
+        console.log('Browser should show native permission prompt immediately!');
+    </script>
+</body>
+</html>

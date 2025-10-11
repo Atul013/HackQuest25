@@ -1,0 +1,134 @@
+════════════════════════════════════════════════════════════════
+                    🎉 QUICK REFERENCE 🎉
+════════════════════════════════════════════════════════════════
+
+🌐 LIVE URL
+───────────────────────────────────────────────────────────────
+https://hackquest25.el.r.appspot.com
+
+
+⚡ QUICK COMMANDS
+───────────────────────────────────────────────────────────────
+# View live logs
+gcloud app logs tail -s default
+
+# Open in browser
+gcloud app browse
+
+# Redeploy after changes
+cd wififrontend
+gcloud app deploy --quiet
+
+# Check status
+gcloud app versions list
+
+
+📝 FILES TO REMEMBER
+───────────────────────────────────────────────────────────────
+E:\Projects\HackQuest25\wififrontend\
+  ├─ login-mypublicwifi.html  (Main portal)
+  ├─ success.html             (Success page)
+  ├─ style.css                (Styles)
+  ├─ app.yaml                 (Config)
+  ├─ DEPLOYMENT-SUCCESS.md    (Full guide)
+  ├─ DEPLOYMENT-GUIDE.md      (How-to)
+  └─ DEPLOYMENT-SUMMARY.txt   (Quick ref)
+
+
+⚠️ IMPORTANT: UPDATE BACKEND URL
+───────────────────────────────────────────────────────────────
+File: login-mypublicwifi.html (Line 732)
+
+Current:
+  var BACKEND_URL = 'https://your-backend-url.run.app/api/register';
+
+After deploying backend, change to:
+  var BACKEND_URL = 'https://hackquest-backend-xxxxx.run.app/api/register';
+
+Then redeploy:
+  gcloud app deploy --quiet
+
+
+📱 MYPUBLICWIFI CONFIG
+───────────────────────────────────────────────────────────────
+Landing Page URL: https://hackquest25.el.r.appspot.com
+
+
+🧪 TEST CHECKLIST
+───────────────────────────────────────────────────────────────
+[ ] Open https://hackquest25.el.r.appspot.com
+[ ] Enter phone number
+[ ] Check location tracking
+[ ] Select language
+[ ] Submit form
+[ ] Verify success page
+[ ] Check Supabase for new record
+[ ] Test on mobile device
+[ ] Verify HTTPS location works
+
+
+✅ DEPLOYED FEATURES
+───────────────────────────────────────────────────────────────
+✓ Phone registration with country codes
+✓ Location tracking (HTTPS enabled)
+✓ 10 Indian languages supported
+✓ Haptic feedback (vibration + flash)
+✓ Supabase database integration
+✓ Mobile optimized responsive design
+✓ Auto SSL certificate
+
+
+📊 PROJECT INFO
+───────────────────────────────────────────────────────────────
+Project ID:     hackquest25
+Region:         asia-south1 (Mumbai)
+Service:        default
+Runtime:        Python 3.12
+Status:         LIVE & OPERATIONAL
+Deployed:       Oct 11, 2025 @ 05:38 AM
+
+
+💰 COST
+───────────────────────────────────────────────────────────────
+Free tier: 28 instance hours/day + 1GB traffic/day
+Expected:  $0-5/month (mostly FREE!)
+
+
+🔗 USEFUL LINKS
+───────────────────────────────────────────────────────────────
+Portal:    https://hackquest25.el.r.appspot.com
+Console:   https://console.cloud.google.com/appengine?project=hackquest25
+Logs:      https://console.cloud.google.com/logs?project=hackquest25
+Supabase:  https://app.supabase.com/project/akblmbpxxotmebzghczj
+
+
+🆘 TROUBLESHOOTING
+───────────────────────────────────────────────────────────────
+Portal not loading?
+  → gcloud app logs tail -s default
+
+Need to rollback?
+  → gcloud app versions list
+  → gcloud app versions deploy VERSION_ID
+
+Backend not working?
+  → Update BACKEND_URL in login-mypublicwifi.html
+  → Redeploy: gcloud app deploy --quiet
+
+Location not working?
+  → Should work (HTTPS enabled!)
+  → Check browser console for errors
+
+
+🎯 NEXT STEPS
+───────────────────────────────────────────────────────────────
+1. Test deployment thoroughly
+2. Deploy backend to Cloud Run
+3. Update backend URL in HTML
+4. Configure MyPublicWiFi
+5. Full system test
+
+
+════════════════════════════════════════════════════════════════
+              🚀 READY FOR THE HACKATHON! 🚀
+════════════════════════════════════════════════════════════════

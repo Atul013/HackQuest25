@@ -257,7 +257,7 @@
             <div class="test-description">
                 Urgent but non-life-threatening alert.
                 <strong style="display:block; margin-top:8px;">Expected:</strong>
-                Triple rapid pulse (no screen flash)
+                White double pulse flash + triple rapid vibration
             </div>
             <button class="test-button btn-high" onclick="testHigh()">
                 Test High Priority
@@ -273,7 +273,7 @@
             <div class="test-description">
                 Standard announcement or information.
                 <strong style="display:block; margin-top:8px;">Expected:</strong>
-                Double pulse vibration + blue banner
+                White double pulse flash + double pulse vibration + blue banner
             </div>
             <button class="test-button btn-medium" onclick="testMedium()">
                 Test Medium Priority
@@ -344,9 +344,13 @@
               console.warn('Vibration not supported on this device');
             }
             
-            // Flash screen for critical/SOS alerts
+            // Flash screen based on alert type
             if (severity === 'critical' || type === 'SOS' || type === 'FIRE') {
-              await this.flashScreen(morseMessage);
+              // Red Morse code flash for critical alerts
+              await this.flashScreen(morseMessage, 'red', true);
+            } else if (type === 'general' || type === 'warning' || severity === 'medium' || severity === 'high') {
+              // White double pulse for general alerts
+              await this.flashScreen('PULSE', 'white', false);
             }
             
             // Restore status
@@ -412,7 +416,7 @@
             }
           }
 
-          async flashScreen(message = 'ALERT') {
+          async flashScreen(message = 'ALERT', color = 'red', useMorse = true) {
             if (this.isFlashing) return;
             
             this.isFlashing = true;
@@ -427,17 +431,42 @@
                 left: 0;
                 right: 0;
                 bottom: 0;
-                background-color: red;
+                background-color: ${color};
                 z-index: 999999;
                 pointer-events: none;
                 opacity: 0;
                 transition: opacity 0.1s ease;
               `;
               document.body.appendChild(overlay);
+            } else {
+              // Update color for existing overlay
+              overlay.style.backgroundColor = color;
             }
             
-            const morsePattern = this.morseCode[message.toUpperCase()] || this.morseCode['ALERT'];
-            await this.executeMorseFlash(morsePattern, overlay);
+            if (useMorse) {
+              // Morse code flash for critical alerts
+              const morsePattern = this.morseCode[message.toUpperCase()] || this.morseCode['ALERT'];
+              await this.executeMorseFlash(morsePattern, overlay);
+            } else {
+              // Simple double pulse for general alerts
+              await this.executeDoublePulse(overlay);
+            }
+          }
+
+          async executeDoublePulse(overlay) {
+            // First pulse
+            overlay.style.opacity = '0.85';
+            await this.sleep(400);
+            overlay.style.opacity = '0';
+            await this.sleep(300);
+            
+            // Second pulse
+            overlay.style.opacity = '0.85';
+            await this.sleep(400);
+            overlay.style.opacity = '0';
+            
+            this.isFlashing = false;
+            console.log('✓ Double pulse flash completed');
           }
 
           async executeMorseFlash(morsePattern, overlay) {

@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile vs Desktop - Geolocation Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            max-width: 700px;
+            margin: 20px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2C3E50;
+            margin-top: 0;
+            font-size: 24px;
+        }
+        .protocol-info {
+            background: #F3F4F6;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+        .protocol-info h3 {
+            margin-top: 0;
+            color: #1F2937;
+        }
+        .allowed {
+            background: #D1FAE5;
+            border-left: 5px solid #10B981;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        .blocked {
+            background: #FEE2E2;
+            border-left: 5px solid #EF4444;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        .info {
+            background: #DBEAFE;
+            border-left: 5px solid #3B82F6;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .device-detection {
+            background: #FEF3C7;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 600;
+        }
+        code {
+            background: #F3F4F6;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #EF4444;
+        }
+        .emoji {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 12px;
+            display: none;
+            font-weight: 500;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #E5E7EB;
+        }
+        th {
+            background: #F9FAFB;
+            font-weight: 600;
+            color: #374151;
+        }
+        .check { color: #10B981; font-weight: bold; }
+        .cross { color: #EF4444; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1><span class="emoji">🌍</span>Why Mobile Blocks Location</h1>
+        
+        <div class="device-detection" id="deviceInfo">
+            Detecting device...
+        </div>
+        
+        <div class="protocol-info">
+            <h3>Current Connection:</h3>
+            <div id="currentProtocol"></div>
+        </div>
+        
+        <div class="info">
+            <strong>📱 The Issue:</strong><br>
+            Mobile browsers (iOS Safari, Chrome Mobile) require <strong>HTTPS</strong> for geolocation API on ANY network IP address - including local WiFi hotspots like <code>192.168.x.x</code>
+        </div>
+    </div>
+
+    <div class="card">
+        <h1>Browser Security Rules</h1>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Connection Type</th>
+                    <th>Desktop</th>
+                    <th>Mobile</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>file://</code> local file</td>
+                    <td class="check">✅ Allowed</td>
+                    <td class="check">✅ Allowed</td>
+                </tr>
+                <tr>
+                    <td><code>https://</code> secure</td>
+                    <td class="check">✅ Allowed</td>
+                    <td class="check">✅ Allowed</td>
+                </tr>
+                <tr>
+                    <td><code>http://localhost</code></td>
+                    <td class="check">✅ Allowed</td>
+                    <td class="check">✅ Allowed</td>
+                </tr>
+                <tr>
+                    <td><code>http://127.0.0.1</code></td>
+                    <td class="check">✅ Allowed</td>
+                    <td class="check">✅ Allowed</td>
+                </tr>
+                <tr style="background: #FEE2E2;">
+                    <td><code>http://192.168.x.x</code></td>
+                    <td class="check">✅ Allowed</td>
+                    <td class="cross">❌ BLOCKED</td>
+                </tr>
+                <tr style="background: #FEE2E2;">
+                    <td><code>http://10.x.x.x</code></td>
+                    <td class="check">✅ Allowed</td>
+                    <td class="cross">❌ BLOCKED</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div class="blocked">
+            <strong>❌ Your WiFi Portal:</strong><br>
+            <code>http://192.168.5.1</code> → Works on desktop, blocked on mobile!
+        </div>
+    </div>
+
+    <div class="card">
+        <h1>Test Geolocation Now</h1>
+        
+        <button onclick="testGeolocation()">
+            🎯 Test Location Permission
+        </button>
+        
+        <div id="result" class="result"></div>
+        
+        <div class="info" style="margin-top: 20px;">
+            <strong>✅ Solution Implemented:</strong><br>
+            Smart fallback - tries location for 3 seconds, then proceeds WITHOUT location if blocked. Users still get emergency alerts!
+        </div>
+    </div>
+
+    <div class="card">
+        <h1>What Happens on Your WiFi Portal</h1>
+        
+        <div class="allowed">
+            <strong>✅ Desktop Users (works!):</strong>
+            <ol style="margin: 10px 0; padding-left: 20px;">
+                <li>Open <code>file://</code> or <code>http://localhost</code></li>
+                <li>Click "Register & Enable Alerts"</li>
+                <li><strong>Browser shows permission prompt</strong></li>
+                <li>User clicks "Allow"</li>
+                <li>Registration with location ✅</li>
+            </ol>
+        </div>
+        
+        <div class="blocked">
+            <strong>❌ Mobile Users (blocked → auto-fixed!):</strong>
+            <ol style="margin: 10px 0; padding-left: 20px;">
+                <li>Connect to WiFi → <code>http://192.168.5.1</code></li>
+                <li>Click "Register & Enable Alerts"</li>
+                <li><strong>No prompt - browser blocks silently</strong></li>
+                <li>After 3 seconds: "Location not available"</li>
+                <li>Registration WITHOUT location ✅</li>
+                <li>User gets general alerts (not location-specific)</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Detect device and protocol
+        window.onload = function() {
+            var isMobile = /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
+            var protocol = window.location.protocol;
+            var hostname = window.location.hostname;
+            var isSecure = protocol === 'https:';
+            var isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '';
+            var isFile = protocol === 'file:';
+            
+            // Display device info
+            var deviceText = isMobile ? '📱 Mobile Device Detected' : '💻 Desktop Device Detected';
+            var deviceColor = isMobile ? '#F59E0B' : '#3B82F6';
+            document.getElementById('deviceInfo').textContent = deviceText;
+            document.getElementById('deviceInfo').style.background = isMobile ? '#FEF3C7' : '#DBEAFE';
+            
+            // Display protocol info
+            var protocolDiv = document.getElementById('currentProtocol');
+            var protocolText = '';
+            var willWork = false;
+            
+            if (isFile) {
+                protocolText = '<div class="allowed">✅ <code>file://</code> - Geolocation ALLOWED on both desktop and mobile</div>';
+                willWork = true;
+            } else if (isSecure) {
+                protocolText = '<div class="allowed">✅ <code>https://</code> - Geolocation ALLOWED on both desktop and mobile</div>';
+                willWork = true;
+            } else if (isLocalhost) {
+                protocolText = '<div class="allowed">✅ <code>http://localhost</code> - Geolocation ALLOWED (development exception)</div>';
+                willWork = true;
+            } else {
+                if (isMobile) {
+                    protocolText = '<div class="blocked">❌ <code>http://' + hostname + '</code> - Geolocation BLOCKED on mobile!<br><small>Mobile browsers require HTTPS for network IPs</small></div>';
+                    willWork = false;
+                } else {
+                    protocolText = '<div class="allowed">✅ <code>http://' + hostname + '</code> - Geolocation ALLOWED on desktop<br><small>(But will be blocked on mobile!)</small></div>';
+                    willWork = true;
+                }
+            }
+            
+            protocolDiv.innerHTML = protocolText;
+            
+            // Log to console
+            console.log('='.repeat(50));
+            console.log('DEVICE:', isMobile ? 'Mobile' : 'Desktop');
+            console.log('PROTOCOL:', protocol);
+            console.log('HOSTNAME:', hostname);
+            console.log('GEOLOCATION WILL WORK?', willWork);
+            console.log('='.repeat(50));
+        };
+        
+        function testGeolocation() {
+            var resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result info';
+            resultDiv.innerHTML = '⏳ Requesting location permission...<br><small>Watch for browser prompt!</small>';
+            
+            if (!navigator.geolocation) {
+                resultDiv.className = 'result blocked';
+                resultDiv.innerHTML = '❌ Geolocation API not supported in this browser';
+                return;
+            }
+            
+            var startTime = Date.now();
+            
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    var elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                    resultDiv.className = 'result allowed';
+                    resultDiv.innerHTML = `
+                        ✅ <strong>SUCCESS!</strong> Location obtained in ${elapsed}s<br><br>
+                        <strong>Coordinates:</strong><br>
+                        Latitude: <code>${position.coords.latitude.toFixed(6)}</code><br>
+                        Longitude: <code>${position.coords.longitude.toFixed(6)}</code><br>
+                        Accuracy: <code>${Math.round(position.coords.accuracy)}m</code><br><br>
+                        <strong style="color: #059669;">Your WiFi portal will work on this device! ✓</strong>
+                    `;
+                },
+                function(error) {
+                    var elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                    var errorMsg = '';
+                    
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            var isMobile = /mobile|android|iphone|ipad/i.test(navigator.userAgent);
+                            var isHTTP = window.location.protocol === 'http:' && 
+                                        window.location.hostname !== 'localhost' &&
+                                        window.location.hostname !== '127.0.0.1' &&
+                                        window.location.hostname !== '';
+                            
+                            if (isMobile && isHTTP) {
+                                errorMsg = `
+                                    ❌ <strong>BLOCKED BY BROWSER</strong> (${elapsed}s)<br><br>
+                                    This is the EXACT issue you're experiencing!<br><br>
+                                    <strong>Why:</strong> Mobile browser + HTTP connection<br>
+                                    <strong>Browser policy:</strong> HTTPS required for geolocation<br>
+                                    <strong>Result:</strong> Permission denied WITHOUT showing prompt<br><br>
+                                    <strong style="color: #059669;">✓ Solution: Auto-fallback after 3 seconds (already implemented!)</strong>
+                                `;
+                            } else {
+                                errorMsg = `
+                                    ❌ <strong>Permission Denied</strong> (${elapsed}s)<br><br>
+                                    You clicked "Block" or "Deny" on the browser prompt.<br><br>
+                                    <strong>To fix:</strong><br>
+                                    • Click location icon 🌍 in address bar<br>
+                                    • Change to "Allow"<br>
+                                    • Try again
+                                `;
+                            }
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg = `❌ <strong>Position Unavailable</strong><br>Location information is not available.`;
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg = `❌ <strong>Timeout</strong><br>Location request timed out after ${elapsed}s.`;
+                            break;
+                        default:
+                            errorMsg = `❌ <strong>Unknown Error</strong><br>${error.message}`;
+                    }
+                    
+                    resultDiv.className = 'result blocked';
+                    resultDiv.innerHTML = errorMsg;
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 0
+                }
+            );
+        }
+    </script>
+</body>
+</html>

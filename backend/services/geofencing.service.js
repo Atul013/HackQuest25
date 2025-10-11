@@ -27,8 +27,7 @@ class GeofencingService {
     try {
       const { data: venues, error } = await db.supabase
         .from('venues')
-        .select('id, name, latitude, longitude, radius')
-        .eq('active', true);
+        .select('id, name, latitude, longitude, radius');
       
       if (error) throw error;
       

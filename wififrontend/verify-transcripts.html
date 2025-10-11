@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transcript Data Verification</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; }
+        h2 { color: #666; margin-top: 0; }
+        .status { padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .transcript-item {
+            border-left: 4px solid #4CAF50;
+            padding: 10px;
+            margin: 10px 0;
+            background: #f9f9f9;
+        }
+        .count { font-size: 24px; font-weight: bold; color: #007bff; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Transcript Data Verification Tool</h1>
+    
+    <div class="card">
+        <h2>Step 1: Check Database Connection</h2>
+        <button onclick="checkConnection()">Test Supabase Connection</button>
+        <div id="connection-status"></div>
+    </div>
+
+    <div class="card">
+        <h2>Step 2: Count Existing Transcripts</h2>
+        <button onclick="countTranscripts()">Count All Transcripts</button>
+        <button onclick="countTestTranscripts()">Count Test Transcripts</button>
+        <div id="count-status"></div>
+    </div>
+
+    <div class="card">
+        <h2>Step 3: View Transcripts by Venue</h2>
+        <button onclick="viewByVenue('08e988d8-6a75-422a-bfe0-0539231c87fb')">Airport</button>
+        <button onclick="viewByVenue('2bad79f3-32aa-499f-8de4-2fe07f1a334a')">Railway</button>
+        <button onclick="viewByVenue('5d03ecd0-e24b-45c8-aa8e-ecf2a6c5a4c6')">Lulu Mall</button>
+        <button onclick="viewByVenue('96ba7dbc-1fe8-491d-99fe-01c04f18d847')">Rajagiri</button>
+        <div id="venue-status"></div>
+    </div>
+
+    <div class="card">
+        <h2>Step 4: Insert Test Data</h2>
+        <p class="info">⚠️ Only run this if Step 2 shows 0 transcripts!</p>
+        <button onclick="insertTestData()">Insert All 30 Test Transcripts</button>
+        <div id="insert-status"></div>
+    </div>
+
+    <div class="card">
+        <h2>Step 5: Test Query (Like Website Uses)</h2>
+        <button onclick="testWebsiteQuery()">Run Website Query</button>
+        <div id="query-status"></div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://akblmbpxxotmebzghczj.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYmxtYnB4eG90bWViemdoY3pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwNzQxMDUsImV4cCI6MjA3NTY1MDEwNX0.6d8XmmmoSh0hY8OWoymIEX7UnQU6qpgyQsyIe7_KHtI';
+        const supabase = supabase_js.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        async function checkConnection() {
+            const div = document.getElementById('connection-status');
+            div.innerHTML = '<div class="status info">Testing connection...</div>';
+            
+            try {
+                const { data, error } = await supabase.from('venues').select('count');
+                if (error) throw error;
+                div.innerHTML = '<div class="status success">✅ Connected to Supabase successfully!</div>';
+            } catch (error) {
+                div.innerHTML = `<div class="status error">❌ Connection failed: ${error.message}</div>`;
+            }
+        }
+
+        async function countTranscripts() {
+            const div = document.getElementById('count-status');
+            div.innerHTML = '<div class="status info">Counting...</div>';
+            
+            try {
+                const { count, error } = await supabase
+                    .from('transcriptions')
+                    .select('*', { count: 'exact', head: true });
+                
+                if (error) throw error;
+                
+                if (count === 0) {
+                    div.innerHTML = `
+                        <div class="status warning">
+                            ⚠️ Found <span class="count">${count}</span> transcripts<br>
+                            <strong>ACTION NEEDED:</strong> Click "Insert All 30 Test Transcripts" below!
+                        </div>
+                    `;
+                } else {
+                    div.innerHTML = `<div class="status success">✅ Found <span class="count">${count}</span> total transcripts in database</div>`;
+                }
+            } catch (error) {
+                div.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function countTestTranscripts() {
+            const div = document.getElementById('count-status');
+            div.innerHTML = '<div class="status info">Counting test data...</div>';
+            
+            try {
+                const { count, error } = await supabase
+                    .from('transcriptions')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('device_id', 'live_audio_device');
+                
+                if (error) throw error;
+                
+                const expected = 30;
+                if (count === 0) {
+                    div.innerHTML = `
+                        <div class="status warning">
+                            ⚠️ Found <span class="count">${count}</span> test transcripts (Expected: ${expected})<br>
+                            <strong>ACTION NEEDED:</strong> Click "Insert All 30 Test Transcripts" below!
+                        </div>
+                    `;
+                } else if (count < expected) {
+                    div.innerHTML = `<div class="status warning">⚠️ Found only <span class="count">${count}</span> test transcripts (Expected: ${expected})</div>`;
+                } else {
+                    div.innerHTML = `<div class="status success">✅ Found <span class="count">${count}</span> test transcripts - Perfect!</div>`;
+                }
+            } catch (error) {
+                div.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function viewByVenue(venueId) {
+            const div = document.getElementById('venue-status');
+            div.innerHTML = '<div class="status info">Loading...</div>';
+            
+            try {
+                const { data: transcripts, error } = await supabase
+                    .from('transcriptions')
+                    .select(`
+                        transcription_text,
+                        announcement_type,
+                        created_at,
+                        venues (name)
+                    `)
+                    .eq('venue_id', venueId)
+                    .eq('device_id', 'live_audio_device')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                const venueName = transcripts[0]?.venues?.name || 'Unknown Venue';
+                
+                if (!transcripts || transcripts.length === 0) {
+                    div.innerHTML = `<div class="status warning">⚠️ No transcripts found for this venue</div>`;
+                    return;
+                }
+                
+                let html = `<div class="status success">✅ Found <strong>${transcripts.length}</strong> transcripts for ${venueName}</div>`;
+                transcripts.forEach(t => {
+                    const timeAgo = Math.floor((new Date() - new Date(t.created_at)) / 60000);
+                    html += `
+                        <div class="transcript-item">
+                            <strong>${t.announcement_type}</strong> (${timeAgo} minutes ago)<br>
+                            ${t.transcription_text}
+                        </div>
+                    `;
+                });
+                div.innerHTML = html;
+            } catch (error) {
+                div.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testWebsiteQuery() {
+            const div = document.getElementById('query-status');
+            div.innerHTML = '<div class="status info">Running query exactly as website does...</div>';
+            
+            try {
+                // Simulate Rajagiri venue (as per your screenshot)
+                const venueId = '96ba7dbc-1fe8-491d-99fe-01c04f18d847';
+                
+                let query = supabase
+                    .from('transcriptions')
+                    .select(`
+                        *,
+                        venues (name)
+                    `)
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                if (venueId) {
+                    query = query.eq('venue_id', venueId);
+                }
+                
+                const { data: transcripts, error } = await query;
+                
+                if (error) throw error;
+                
+                if (!transcripts || transcripts.length === 0) {
+                    div.innerHTML = `
+                        <div class="status warning">
+                            ⚠️ Query returned 0 results for Rajagiri<br>
+                            <strong>This is why the website shows "Cannot fetch transcripts"</strong><br>
+                            Please insert test data using Step 4!
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = `<div class="status success">✅ Query successful! Found ${transcripts.length} transcripts</div>`;
+                html += '<pre>' + JSON.stringify(transcripts, null, 2) + '</pre>';
+                div.innerHTML = html;
+            } catch (error) {
+                div.innerHTML = `<div class="status error">❌ Query failed: ${error.message}<br><pre>${JSON.stringify(error, null, 2)}</pre></div>`;
+            }
+        }
+
+        async function insertTestData() {
+            const div = document.getElementById('insert-status');
+            div.innerHTML = '<div class="status info">Inserting 30 test transcripts... Please wait...</div>';
+            
+            const testData = [
+                // Airport - 7 transcripts
+                { transcription_text: 'Flight announcement: Air India flight AI123 to Mumbai is now boarding at Gate 5.', venue_id: '08e988d8-6a75-422a-bfe0-0539231c87fb', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'transport', created_at: new Date(Date.now() - 2*60000) },
+                { transcription_text: 'Security alert: Please do not leave your baggage unattended. Unattended baggage will be removed.', venue_id: '08e988d8-6a75-422a-bfe0-0539231c87fb', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'security', created_at: new Date(Date.now() - 8*60000) },
+                { transcription_text: 'Flight update: IndiGo flight 6E456 to Delhi has been delayed by 45 minutes due to weather conditions.', venue_id: '08e988d8-6a75-422a-bfe0-0539231c87fb', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'transport', created_at: new Date(Date.now() - 12*60000) },
+                { transcription_text: 'Passenger announcement: Mr. Rajesh Kumar, please proceed to Gate 12 immediately. Last call for boarding.', venue_id: '08e988d8-6a75-422a-bfe0-0539231c87fb', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'general', created_at: new Date(Date.now() - 18*60000) },
+                { transcription_text: 'Emergency announcement: Fire alarm test will be conducted in Terminal 1. Please do not panic.', venue_id: '08e988d8-6a75-422a-bfe0-0539231c87fb', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'emergency', created_at: new Date(Date.now() - 25*60000) },
+                { transcription_text: 'Notice: Free WiFi is available throughout the airport. Connect to CIAL-WiFi network.', venue_id: '08e988d8-6a75-422a-bfe0-0539231c87fb', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'general', created_at: new Date(Date.now() - 35*60000) },
+                { transcription_text: 'Flight announcement: Spicejet flight SG789 to Bangalore is now ready for boarding at Gate 8.', venue_id: '08e988d8-6a75-422a-bfe0-0539231c87fb', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'transport', created_at: new Date(Date.now() - 42*60000) },
+                
+                // Railway - 8 transcripts
+                { transcription_text: 'Platform announcement: Train number 12617 Mangala Express from Chennai to Mangalore will arrive on Platform 3.', venue_id: '2bad79f3-32aa-499f-8de4-2fe07f1a334a', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'transport', created_at: new Date(Date.now() - 1*60000) },
+                { transcription_text: 'Attention passengers: Train number 16349 Rajya Rani Express has been rescheduled. New departure time is 14:30.', venue_id: '2bad79f3-32aa-499f-8de4-2fe07f1a334a', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'transport', created_at: new Date(Date.now() - 5*60000) },
+                { transcription_text: 'Lost and found announcement: A black backpack has been found on Platform 2. Please collect from Station Master office.', venue_id: '2bad79f3-32aa-499f-8de4-2fe07f1a334a', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'general', created_at: new Date(Date.now() - 10*60000) },
+                { transcription_text: 'Platform change: Train number 12625 Kerala Express will now depart from Platform 5 instead of Platform 7.', venue_id: '2bad79f3-32aa-499f-8de4-2fe07f1a334a', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'transport', created_at: new Date(Date.now() - 15*60000) },
+                { transcription_text: 'Security alert: Please report any suspicious activity or unattended luggage to railway police immediately.', venue_id: '2bad79f3-32aa-499f-8de4-2fe07f1a334a', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'security', created_at: new Date(Date.now() - 22*60000) },
+                { transcription_text: 'Train arrival: Trivandrum Mail arriving on Platform 1 in 5 minutes. Please stand behind the yellow line.', venue_id: '2bad79f3-32aa-499f-8de4-2fe07f1a334a', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'transport', created_at: new Date(Date.now() - 28*60000) },
+                { transcription_text: 'Maintenance notice: Platform 6 is temporarily closed for maintenance work. Expected reopening at 16:00 hours.', venue_id: '2bad79f3-32aa-499f-8de4-2fe07f1a334a', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'maintenance', created_at: new Date(Date.now() - 35*60000) },
+                { transcription_text: 'Emergency drill: Fire safety drill will be conducted today at 15:00. This is only a drill, please cooperate.', venue_id: '2bad79f3-32aa-499f-8de4-2fe07f1a334a', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'emergency', created_at: new Date(Date.now() - 50*60000) },
+                
+                // Lulu Mall - 6 transcripts
+                { transcription_text: 'Special offer: Flat 50% discount on all electronics at Digital World store, Ground Floor. Offer valid till 8 PM today.', venue_id: '5d03ecd0-e24b-45c8-aa8e-ecf2a6c5a4c6', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'general', created_at: new Date(Date.now() - 3*60000) },
+                { transcription_text: 'Lost child announcement: A 4-year-old girl wearing a pink dress is with mall security. Parents please come to Customer Care desk.', venue_id: '5d03ecd0-e24b-45c8-aa8e-ecf2a6c5a4c6', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'general', created_at: new Date(Date.now() - 12*60000) },
+                { transcription_text: 'Parking announcement: Red zone parking is almost full. Please use Blue zone or Green zone for parking.', venue_id: '5d03ecd0-e24b-45c8-aa8e-ecf2a6c5a4c6', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'general', created_at: new Date(Date.now() - 20*60000) },
+                { transcription_text: 'Food court announcement: New restaurant "Spice Garden" is now open on the 3rd floor with special inaugural discounts.', venue_id: '5d03ecd0-e24b-45c8-aa8e-ecf2a6c5a4c6', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'general', created_at: new Date(Date.now() - 30*60000) },
+                { transcription_text: 'Security notice: For your safety, please keep your belongings secure. CCTV surveillance is active throughout the mall.', venue_id: '5d03ecd0-e24b-45c8-aa8e-ecf2a6c5a4c6', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'security', created_at: new Date(Date.now() - 40*60000) },
+                { transcription_text: 'Mall hours: Lulu Mall will close at 10 PM tonight. Please complete your shopping and exit by 9:45 PM.', venue_id: '5d03ecd0-e24b-45c8-aa8e-ecf2a6c5a4c6', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'general', created_at: new Date(Date.now() - 55*60000) },
+                
+                // Rajagiri - 9 transcripts
+                { transcription_text: 'Class notification: Computer Science students - Advanced AI lecture has been moved to Seminar Hall 3.', venue_id: '96ba7dbc-1fe8-491d-99fe-01c04f18d847', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'general', created_at: new Date(Date.now() - 1*60000) },
+                { transcription_text: 'Library announcement: Central library will close early today at 6 PM for annual maintenance. Please return books before closing.', venue_id: '96ba7dbc-1fe8-491d-99fe-01c04f18d847', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'maintenance', created_at: new Date(Date.now() - 7*60000) },
+                { transcription_text: 'Event announcement: Tech fest registration is now open. Visit Student Activity Center or register online at rajagiri.edu.', venue_id: '96ba7dbc-1fe8-491d-99fe-01c04f18d847', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'general', created_at: new Date(Date.now() - 14*60000) },
+                { transcription_text: 'Transport update: College bus departure time has been changed to 5:30 PM due to traffic conditions on MG Road.', venue_id: '96ba7dbc-1fe8-491d-99fe-01c04f18d847', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'transport', created_at: new Date(Date.now() - 20*60000) },
+                { transcription_text: 'Emergency drill: Fire evacuation drill scheduled for 2 PM today. All students and staff must participate. Assembly point is main ground.', venue_id: '96ba7dbc-1fe8-491d-99fe-01c04f18d847', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'emergency', created_at: new Date(Date.now() - 25*60000) },
+                { transcription_text: 'Placement notice: IBM campus recruitment drive tomorrow. Eligible students report to Placement Cell by 9 AM with updated resumes.', venue_id: '96ba7dbc-1fe8-491d-99fe-01c04f18d847', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'general', created_at: new Date(Date.now() - 33*60000) },
+                { transcription_text: 'Cafeteria announcement: New menu items available including South Indian breakfast combos. Special discount for faculty today.', venue_id: '96ba7dbc-1fe8-491d-99fe-01c04f18d847', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'general', created_at: new Date(Date.now() - 40*60000) },
+                { transcription_text: 'Lab notification: Electronics lab will be closed from 3 PM to 5 PM for equipment calibration. Plan your practical sessions accordingly.', venue_id: '96ba7dbc-1fe8-491d-99fe-01c04f18d847', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'maintenance', created_at: new Date(Date.now() - 48*60000) },
+                { transcription_text: 'Sports announcement: Basketball tournament registration closes today. Finals will be held this Saturday at the sports complex.', venue_id: '96ba7dbc-1fe8-491d-99fe-01c04f18d847', device_id: 'live_audio_device', is_announcement: true, announcement_type: 'general', created_at: new Date(Date.now() - 60*60000) }
+            ];
+            
+            try {
+                const { data, error } = await supabase
+                    .from('transcriptions')
+                    .insert(testData);
+                
+                if (error) throw error;
+                
+                div.innerHTML = `
+                    <div class="status success">
+                        ✅ Successfully inserted 30 test transcripts!<br>
+                        <strong>Now refresh the success page and click "View Last 10 Transcripts"</strong>
+                    </div>
+                `;
+                
+                // Auto count after insert
+                setTimeout(countTestTranscripts, 1000);
+            } catch (error) {
+                div.innerHTML = `<div class="status error">❌ Insert failed: ${error.message}<br><pre>${JSON.stringify(error, null, 2)}</pre></div>`;
+            }
+        }
+
+        // Auto-run connection test on load
+        window.addEventListener('load', checkConnection);
+    </script>
+</body>
+</html>
