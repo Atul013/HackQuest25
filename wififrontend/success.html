@@ -123,267 +123,34 @@ p {
     font-size: 13px;
     color: #9CA3AF;
 }
+/* Blue Header for Transcription Alerts */
+.transcription-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #2563EB;
+    color: white;
+    padding: 12px 20px;
+    text-align: center;
+    font-weight: 500;
+    z-index: 1000;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
 </style>
-
-<!-- Supabase JS Client -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<script>
-// Supabase configuration
-const SUPABASE_URL = 'https://akblmbpxxotmebzghczj.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYmxtYnB4eG90bWViemdoY3pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwNzQxMDUsImV4cCI6MjA3NTY1MDEwNX0.6d8XmmmoSh0hY8OWoymIEX7UnQU6qpgyQsyIe7_KHtI';
-
-let supabase = null;
-let lastTranscriptionId = null;
-let isPolling = false;
-
-// Initialize Supabase connection
-function initializeSupabase() {
-    try {
-        if (typeof window.supabase_js !== 'undefined') {
-            supabase = window.supabase_js.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            console.log('✅ Connected to Supabase successfully');
-            return true;
-        }
-    } catch (error) {
-        console.error('❌ Supabase connection failed:', error);
-    }
-    return false;
-}
-
-// Start polling for transcription texts
-function startTranscriptionPolling() {
-    if (isPolling || !supabase) return;
-    
-    isPolling = true;
-    console.log('🎧 Starting transcription polling...');
-    
-    setInterval(async () => {
-        try {
-            // Fetch latest transcriptions from Supabase
-            const { data, error } = await supabase
-                .from('transcriptions')
-                .select('*')
-                .eq('is_announcement', true)
-                .order('created_at', { ascending: false })
-                .limit(1);
-            
-            if (error) {
-                console.error('Error fetching transcriptions:', error);
-                return;
-            }
-            
-            if (data && data.length > 0) {
-                const latestTranscription = data[0];
-                
-                // Check if this is a new transcription
-                if (lastTranscriptionId !== latestTranscription.id) {
-                    lastTranscriptionId = latestTranscription.id;
-                    
-                    // Check if transcription is recent (within last 30 seconds)
-                    const transcriptionTime = new Date(latestTranscription.created_at);
-                    const now = new Date();
-                    const timeDiff = (now - transcriptionTime) / 1000;
-                    
-                    if (timeDiff <= 30 && latestTranscription.transcription_text) {
-                        showTranscriptionAlert(latestTranscription.transcription_text);
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('Polling error:', error);
-        }
-    }, 2000); // Check every 2 seconds
-}
-
-// Show transcription as alert message
-function showTranscriptionAlert(transcriptionText) {
-    console.log('🚨 New transcription alert:', transcriptionText);
-    
-    // Create or update the blue header alert bar
-    let alertBar = document.getElementById('alert-header-bar');
-    if (!alertBar) {
-        alertBar = document.createElement('div');
-        alertBar.id = 'alert-header-bar';
-        alertBar.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(135deg, #3B82F6, #1D4ED8);
-            color: white;
-            padding: 15px 20px;
-            text-align: center;
-            z-index: 1000;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-weight: 500;
-            font-size: 14px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        `;
-        document.body.appendChild(alertBar);
-        
-        // Push page content down
-        document.body.style.paddingTop = '60px';
-    }
-    
-    // Update the header with transcription text
-    alertBar.innerHTML = `
-        <span style="font-size: 16px; margin-right: 8px;">🚨</span>
-        <strong>LIVE ALERT:</strong>
-        <span style="margin-left: 8px;">${transcriptionText}</span>
-    `;
-    
-    // Add pulsing animation
-    alertBar.style.animation = 'pulse 2s infinite';
-    
-    // Add CSS for pulse animation if not exists
-    if (!document.getElementById('pulse-animation')) {
-        const style = document.createElement('style');
-        style.id = 'pulse-animation';
-        style.textContent = `
-            @keyframes pulse {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.8; }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-    
-    // Vibration feedback
-    if (navigator.vibrate) {
-        navigator.vibrate([200, 100, 200]);
-    }
-    
-    // Auto-revert to welcome message after 8 seconds
-    setTimeout(() => {
-        showWelcomeMessage();
-    }, 8000);
-}
-
-// Show welcome message in blue header
-function showWelcomeMessage() {
-    let alertBar = document.getElementById('alert-header-bar');
-    if (!alertBar) {
-        alertBar = document.createElement('div');
-        alertBar.id = 'alert-header-bar';
-        alertBar.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(135deg, #3B82F6, #1D4ED8);
-            color: white;
-            padding: 15px 20px;
-            text-align: center;
-            z-index: 1000;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-weight: 500;
-            font-size: 14px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        `;
-        document.body.appendChild(alertBar);
-        
-        // Push page content down
-        document.body.style.paddingTop = '60px';
-    }
-    
-    // Show welcome message
-    alertBar.innerHTML = `
-        <span style="font-size: 16px; margin-right: 8px;">⚠️</span>
-        <strong>Welcome to AlertNet!</strong>
-        <span style="margin-left: 8px;">You will receive alerts like this.</span>
-    `;
-    
-    // Remove pulsing animation
-    alertBar.style.animation = 'none';
-}
-
-// Initialize when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('📱 Success page loaded - connecting to Supabase...');
-    
-    // Show welcome message immediately
-    setTimeout(() => {
-        showWelcomeMessage();
-    }, 500);
-    
-    // Try to initialize Supabase
-    setTimeout(() => {
-        if (initializeSupabase()) {
-            // Start polling for transcriptions
-            setTimeout(() => {
-                startTranscriptionPolling();
-                console.log('🎯 Live transcription alerts are now active!');
-            }, 1000);
-        } else {
-            // Retry initialization
-            let retryCount = 0;
-            const retryInterval = setInterval(() => {
-                retryCount++;
-                console.log(`🔄 Retrying Supabase connection... (${retryCount}/10)`);
-                if (initializeSupabase() || retryCount >= 10) {
-                    clearInterval(retryInterval);
-                    if (supabase) {
-                        startTranscriptionPolling();
-                        console.log('🎯 Live transcription alerts are now active!');
-                    } else {
-                        console.error('❌ Failed to connect to Supabase after 10 attempts');
-                    }
-                }
-            }, 1000);
-        }
-    }, 1000);
-    
-    // Test with existing data immediately
-    setTimeout(() => {
-        if (supabase) {
-            console.log('🧪 Testing with existing transcription data...');
-            testExistingData();
-        }
-    }, 3000);
-});
-
-// Test function to check existing data
-async function testExistingData() {
-    try {
-        const { data, error } = await supabase
-            .from('transcriptions')
-            .select('*')
-            .eq('is_announcement', true)
-            .order('created_at', { ascending: false })
-            .limit(1);
-        
-        if (data && data.length > 0) {
-            console.log('📋 Found existing transcription data:', data[0]);
-            // Show the latest transcription as a test
-            setTimeout(() => {
-                showTranscriptionAlert(data[0].transcription_text);
-            }, 2000);
-        } else {
-            console.log('📋 No existing transcription data found');
-        }
-    } catch (error) {
-        console.error('Error testing existing data:', error);
-    }
-}
-
-// Test functions for manual testing
-function testAlert() {
-    showTranscriptionAlert("This is a test emergency announcement. Please evacuate the building immediately using the nearest exit.");
-}
-
-function testWelcome() {
-    showWelcomeMessage();
-}
-
-// Make test functions available globally
-window.testAlert = testAlert;
-window.testWelcome = testWelcome;
-window.testExistingData = testExistingData;
-</script>
 </head>
 <body>
-    <div class="success-container">
+    <!-- Blue Header for Live Transcription Alerts -->
+    <div id="transcriptionHeader" class="transcription-header">
+        ⚠️ Welcome to AlertNet! You will receive alerts like this.
+    </div>
+
+    <div class="success-container" style="margin-top: 60px;">
         <div class="success-icon">
             <div class="checkmark"></div>
         </div>
@@ -736,6 +503,44 @@ window.testExistingData = testExistingData;
         console.log('  testFireAlert() - Test FIRE alert with screen flash');
         console.log('  testRegularAlert() - Test regular alert with haptic feedback');
         console.log('');
+
+        // TRANSCRIPTION ALERT SYSTEM
+        // Simple polling for transcription alerts in blue header
+        let supabase;
+        
+        try {
+            supabase = window.supabase_js.createClient(
+                'https://akblmbpxxotmebzghczj.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrYmxtYnB4eG90bWViemdoY3pqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAwNzQxMDUsImV4cCI6MjA3NTY1MDEwNX0.6d8XmmmoSh0hY8OWoymIEX7UnQU6qpgyQsyIe7_KHtI'
+            );
+            
+            async function checkTranscriptions() {
+                try {
+                    const { data } = await supabase
+                        .from('transcriptions')
+                        .select('transcription_text, created_at')
+                        .eq('is_announcement', true)
+                        .order('created_at', { ascending: false })
+                        .limit(1);
+                    
+                    if (data && data.length > 0) {
+                        const header = document.getElementById('transcriptionHeader');
+                        if (header) {
+                            header.textContent = data[0].transcription_text;
+                        }
+                    }
+                } catch (error) {
+                    console.log('Transcription check error:', error);
+                }
+            }
+            
+            // Check every 2 seconds
+            setInterval(checkTranscriptions, 2000);
+            checkTranscriptions(); // Initial check
+            
+        } catch (error) {
+            console.log('Supabase setup error:', error);
+        }
     </script>
 </body>
 </html>
