@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AlertNet QR Scanner</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#059669" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="QR Alert" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    
+    <!-- Icons -->
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- Inline runtime error overlay (runs before app bundle) -->
+    <script>
+      (function(){
+        function createOverlay(){
+          if (document.getElementById('__error_overlay')) return document.getElementById('__error_overlay');
+          const o = document.createElement('div');
+          o.id = '__error_overlay';
+          o.style.position = 'fixed';
+          o.style.left = '12px';
+          o.style.right = '12px';
+          o.style.top = '12px';
+          o.style.zIndex = '9999999';
+          o.style.padding = '12px';
+          o.style.borderRadius = '8px';
+          o.style.background = 'rgba(255,20,20,0.95)';
+          o.style.color = 'white';
+          o.style.fontFamily = 'monospace';
+          o.style.fontSize = '13px';
+          o.style.maxHeight = '60vh';
+          o.style.overflow = 'auto';
+          o.style.boxShadow = '0 6px 30px rgba(0,0,0,0.4)';
+          o.innerText = 'Loading...';
+          document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(o); });
+          return o;
+        }
+
+        function showError(msg){
+          try{
+            const o = createOverlay();
+            const time = new Date().toISOString();
+            o.innerText = time + '\n' + msg;
+            o.style.display = 'block';
+          }catch(e){
+            console.error('Error overlay failed', e);
+          }
+        }
+
+        window.addEventListener('error', function(ev){
+          const err = ev && ev.error && ev.error.stack ? ev.error.stack : (ev.message || String(ev));
+          showError('Uncaught error:\n' + err);
+        });
+
+        window.addEventListener('unhandledrejection', function(ev){
+          const reason = ev && ev.reason ? (ev.reason.stack || ev.reason) : 'Unknown rejection';
+          showError('Unhandled Promise rejection:\n' + reason);
+        });
+
+        window.__clearRuntimeError = function(){
+          const el = document.getElementById('__error_overlay');
+          if (el) el.remove();
+        };
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- PWA Registration Script -->
+    <script>
+      let deferredPrompt;
+      let installButton;
+      
+      // Create install button
+      function createInstallButton() {
+        installButton = document.createElement('button');
+        installButton.innerHTML = '📱 Install QR App';
+        installButton.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          z-index: 1000;
+          background: #059669;
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 25px;
+          cursor: pointer;
+          font-weight: bold;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          transition: all 0.3s ease;
+          display: none;
+        `;
+        installButton.addEventListener('click', async () => {
+          if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to install prompt: ${outcome}`);
+            deferredPrompt = null;
+            installButton.style.display = 'none';
+          }
+        });
+        document.body.appendChild(installButton);
+      }
+
+      // Production: disable service worker registration entirely (prevents stale caches causing white screens)
+      // NOTE: keep install button logic only. Do not register a service worker here.
+
+      // PWA Install Prompt
+      window.addEventListener('beforeinstallprompt', (e) => {
+        console.log('💡 beforeinstallprompt fired');
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // Show install button
+        if (installButton) {
+          installButton.style.display = 'block';
+        }
+        
+        // Also show auto prompt after 3 seconds
+        setTimeout(() => {
+          if (deferredPrompt && window.confirm('Install QR Alert as an app for better experience?')) {
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then((choiceResult) => {
+              console.log('User choice:', choiceResult.outcome);
+              deferredPrompt = null;
+              if (installButton) installButton.style.display = 'none';
+            });
+          }
+        }, 3000);
+      });
+
+      // Check if already installed
+      window.addEventListener('appinstalled', (evt) => {
+        console.log('✅ App was installed.');
+        if (installButton) installButton.style.display = 'none';
+      });
+
+      // Debug info
+      console.log('🔍 PWA Debug Info:');
+      console.log('- Service Worker supported:', 'serviceWorker' in navigator);
+      console.log('- Standalone mode:', window.matchMedia('(display-mode: standalone)').matches);
+      console.log('- User Agent:', navigator.userAgent);
+    </script>
+  </body>
+</html>

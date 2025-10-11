@@ -1,0 +1,15 @@
+{
+  "name": "geofence-service",
+  "version": "1.0.0",
+  "description": "Lightweight geofence checker for HackQuest25 (Cloud Run)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.1.4",
+    "express": "^4.18.2",
+    "redis": "^4.6.7",
+    "morgan": "^1.10.0"
+  }
+}
